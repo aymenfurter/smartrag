@@ -116,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         while (buffer.length > 0) {
             const char = buffer[0];
             buffer = buffer.substring(1);
+            // check if emoji
             if (char === '<') {
                 if (buffer.startsWith('br>')) {
                     const br = document.createElement('br');
@@ -132,6 +133,11 @@ document.addEventListener('DOMContentLoaded', () => {
             chatContainer.scrollTop = chatContainer.scrollHeight;
             await new Promise(resolve => setTimeout(resolve, 3));
         }
+        const spans = document.querySelectorAll('.message.assistant span');
+        spans.forEach(span => {
+            const textNode = document.createTextNode(span.textContent);
+            span.replaceWith(textNode);
+        });
         isProcessing = false;
     }
 
