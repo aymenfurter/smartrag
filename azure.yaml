@@ -1,0 +1,8 @@
+name: rerag-data-solution-accelerator
+metadata:
+  template: rerag-solution-accelerator@1.7.0
+services:
+  app:
+    project: .
+    language: python
+    host: containerapp

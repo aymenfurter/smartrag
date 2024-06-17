@@ -1,0 +1,9 @@
+flask
+python-dotenv
+azure-identity
+azure-storage-blob
+PyPDF2
+pdf2image
+Pillow
+uuid
+azure-ai-documentintelligence

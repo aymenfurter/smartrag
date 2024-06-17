@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Chat</title>
+    <link rel="stylesheet" href="static/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <nav>
+                <ul>
+                    <li class="active"><a href="#">💬 Chat</a></li>
+                    <li class=""><a id="show-upload" href="#">📤 Upload</a></li>
+                    <li class="coming-soon"><a href="#">🕵️ Research</a></li>
+                </ul>
+            </nav>
+        </header>
+        <div class="chat-section">
+            <div id="chat-container"></div>
+            <form id="chat-form">
+                <input type="text" id="user-message" placeholder="Type your message...">
+                <button type="submit">Send</button>
+            </form>
+        </div>
+        <div class="upload-section hidden" id="upload-section">
+            <h2>Upload File</h2>
+            <form id="upload-form">
+                <div class="file-input-wrapper">
+                    <input type="file" id="file-input">
+                    <button type="submit">Upload</button>
+                </div>
+                <div id="upload-status"></div>
+            </form>
+            <div class="uploaded-files">
+                <h3>Previously Uploaded Files</h3>
+                <ul id="file-list"></ul>
+            </div>
+        </div>
+    </div>
+    <script src="static/js/scripts.js"></script>
+</body>
+</html>
