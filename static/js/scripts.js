@@ -113,28 +113,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function processBuffer(messageElement) {
         isProcessing = true;
-        while (buffer.length > 0) {
+    
+        function getNextCharacterSequence(buffer) {
             const char = buffer[0];
-            buffer = buffer.substring(1);
-
-            if (char === '<') {
-                if (buffer.startsWith('br>')) {
-                    const br = document.createElement('br');
-                    messageElement.appendChild(br);
-                    buffer = buffer.substring(3);
-                    continue;
-                }
+            if (/[\uD800-\uDBFF][\uDC00-\uDFFF]/.test(buffer.slice(0, 2))) {
+                return buffer.slice(0, 2); // Handle emojis and other surrogate pairs
             }
+            return char;
+        }
+    
+        while (buffer.length > 0) {
+            const charSequence = getNextCharacterSequence(buffer);
+            buffer = buffer.substring(charSequence.length);
+    
+            if (charSequence === '<' && buffer.startsWith('br>')) {
+                const br = document.createElement('br');
+                messageElement.appendChild(br);
+                buffer = buffer.substring(3);
+                continue;
+            }
+    
             const span = document.createElement('span');
-            span.innerHTML = char === ' ' ? '&nbsp;' : char;
+            span.innerHTML = charSequence === ' ' ? '&nbsp;' : charSequence;
             span.style.opacity = '0';
             span.style.animation = 'fadeInChar 0.3s forwards';
             messageElement.appendChild(span);
             chatContainer.scrollTop = chatContainer.scrollHeight;
             await new Promise(resolve => setTimeout(resolve, 3));
         }
+    
         isProcessing = false;
     }
+
 
     function saveUploadedFile(filename) {
         const files = getUploadedFiles();
