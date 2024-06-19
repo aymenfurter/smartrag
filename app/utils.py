@@ -13,3 +13,6 @@ def split_pdf_to_pages(pdf_path, output_dir, prefix):
             pdf_writer.write(output_pdf)
     logging.debug(f"Split PDF into {num_pages} pages for user {prefix}.")
     return num_pages
+
+def get_user_id(request):
+    return request.headers.get('X-MS-CLIENT-PRINCIPAL-NAME', "163e5568-589b-12d3-5454-426614174063")

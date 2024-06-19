@@ -4,7 +4,7 @@ import time
 import uuid
 from flask import request, jsonify, Response
 from werkzeug.utils import secure_filename
-from .utils import split_pdf_to_pages
+from .utils import split_pdf_to_pages, get_user_id
 from .pdf_processing import convert_pdf_page_to_png
 from .blob_service import upload_files_to_blob, create_user_containers, initialize_blob_service, list_files_in_container, delete_file_from_blob
 from .doc_intelligence import convert_pdf_page_to_md
@@ -29,7 +29,7 @@ def configure_routes(app):
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
 
-            user_id = request.headers.get('X-MS-CLIENT-PRINCIPAL-NAME', "163e5568-589b-12d3-5454-426614174063")
+            user_id = get_user_id(request)
             ingestion_container, reference_container, new_ingestion_container_created = create_user_containers(user_id)
 
             num_pages = split_pdf_to_pages(file_path, app.config['PROCESSED_FOLDER'], filename)
@@ -51,7 +51,7 @@ def configure_routes(app):
 
     @app.route('/list-files', methods=['GET'])
     def list_files():
-        user_id = request.headers.get('X-MS-CLIENT-PRINCIPAL-NAME', "163e5568-589b-12d3-5454-426614174063")
+        user_id = get_user_id(request)
         container_name = f"{user_id}-reference"
         try:
             file_list = list_files_in_container(container_name)
@@ -63,7 +63,7 @@ def configure_routes(app):
 
     @app.route('/delete-file/<filename>', methods=['DELETE'])
     def delete_file(filename):
-        user_id = request.headers.get('X-MS-CLIENT-PRINCIPAL-NAME', "163e5568-589b-12d3-5454-426614174063")
+        user_id = get_user_id(request)
         container_names = [f"{user_id}-reference", f"{user_id}-ingestion"]
 
         try:
@@ -79,7 +79,7 @@ def configure_routes(app):
 
     @app.route('/index-files', methods=['POST'])
     def index_files():
-        user_id = request.headers.get('X-MS-CLIENT-PRINCIPAL-NAME', "163e5568-589b-12d3-5454-426614174063")
+        user_id = get_user_id(request)
         ingestion_container = f"{user_id}-ingestion"
         try:
             create_ingestion_job(ingestion_container)
@@ -89,7 +89,7 @@ def configure_routes(app):
 
     @app.route('/references/<path:filename>')
     def get_source_document(filename):
-        user_id = request.headers.get('X-MS-CLIENT-PRINCIPAL-NAME', "163e5568-589b-12d3-5454-426614174063")
+        user_id = get_user_id(request)
         container_name = f"{user_id}-reference"
         blob_service_client = initialize_blob_service()
         container_client = blob_service_client.get_container_client(container_name)
@@ -106,7 +106,7 @@ def configure_routes(app):
 
     @app.route('/chat', methods=['POST'])
     def chat():
-        user_id = request.headers.get('X-MS-CLIENT-PRINCIPAL-NAME', str(uuid.uuid4()))
+        user_id = get_user_id(request)
         data = request.json
         return chat_with_data(data, user_id)
     
