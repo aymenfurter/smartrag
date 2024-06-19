@@ -15,7 +15,7 @@ body {
     border-radius: 8px;
     padding: 20px;
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-    width: 800px;
+    width: 85%;
     max-width: 100%;
     overflow: hidden;
     display: flex;
@@ -98,7 +98,6 @@ nav ul li.coming-soon a {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: #f9f9f9;
     padding: 10px;
     border-radius: 8px;
     border: 1px solid #ccc;
@@ -149,10 +148,8 @@ button:hover {
     max-height: 150px;
     overflow-y: auto;
     margin: 0;
-    background: #f9f9f9;
     padding: 10px;
     border-radius: 8px;
-    border: 1px solid #ccc;
 }
 
 .uploaded-files ul li {
@@ -187,7 +184,7 @@ button:hover {
     background: #eaeaea;
     border-radius: 8px;
     padding: 10px;
-    height: 600px;
+    height: 900px;
     overflow-y: scroll;
     margin-bottom: 10px;
 }
@@ -230,7 +227,7 @@ button:hover {
 }
 
 .message span.fade-in {
-    animation: fadeInChar 0.4s ease forwards;
+    animation: fadeInChar 0.4s ease forwards, glowChar 0.5s ease 0.4s forwards;
 }
 
 
@@ -250,4 +247,80 @@ input[type="text"] {
 input[type="text"]:focus {
     border-color: #0078D7;
     outline: none;
+}
+
+
+.main-content {
+    display: flex;
+    gap: 20px;
+}
+
+.chat-section {
+    flex: 1;
+}
+
+.source-document-section {
+    flex: 0 0 30%;
+    background: #f9f9f9;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+
+.source-document-section.hidden {
+    display: none;
+}
+
+.source-document-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.source-document-header h2 {
+    margin: 0;
+}
+
+.source-document-header button {
+    background-color: #0078D7;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.source-document-header button:hover {
+    background-color: #005bb5;
+}
+
+.success {
+    color: green;
+    font-weight: bold;
+}
+
+.error {
+    color: red;
+    font-weight: bold;
+}
+
+.hidden {
+    display: none;
+}
+.citations-section {
+    opacity: 0;
+    animation: fadeIn 1.5s ease 1s forwards;
+}
+
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

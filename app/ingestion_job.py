@@ -65,7 +65,6 @@ def create_ingestion_job(container_name):
     
     if response.status_code == 200:
         print(f"Ingestion job created successfully: {response.json()}")
-        # GET {endpoint}/openai/ingestion/jobs/{job-id}/runs?api-version=2024-05-01-preview
         job_status_url = f"{endpoint}/openai/ingestion/jobs/{job_id}/runs?api-version={api_version}"
         check_job_status(job_status_url, headers)
     else:

@@ -39,3 +39,15 @@ def upload_files_to_blob(container_name, file_paths):
         blob_path = os.path.basename(file_path)
         with open(file_path, "rb") as data:
             container_client.upload_blob(name=blob_path, data=data, overwrite=True)
+
+def list_files_in_container(container_name):
+    blob_service_client = initialize_blob_service()
+    container_client = blob_service_client.get_container_client(container_name)
+    blobs = container_client.list_blobs()
+    return [blob.name for blob in blobs]
+
+def delete_file_from_blob(container_name, filename):
+    blob_service_client = initialize_blob_service()
+    container_client = blob_service_client.get_container_client(container_name)
+    blob_client = container_client.get_blob_client(filename)
+    blob_client.delete_blob()
