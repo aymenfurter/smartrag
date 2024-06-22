@@ -39,8 +39,14 @@ const MessageForm = styled.form`
 `;
 
 const flyInAnimation = keyframes`
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translate(-20px, -20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
 `;
 
 const Message = styled.div`
@@ -61,140 +67,57 @@ const Message = styled.div`
     background-color: #f1f1f1;
     align-self: flex-start;
   }
+
+  p {
+    margin: 0 0 10px 0;
+  }
+
+  ul, ol {
+    margin: 0 0 10px 0;
+    padding-left: 20px;
+  }
+
+  code {
+    background-color: #f0f0f0;
+    padding: 2px 4px;
+    border-radius: 3px;
+  }
+
+  pre {
+    background-color: #f0f0f0;
+    padding: 10px;
+    border-radius: 3px;
+    overflow-x: auto;
+  }
 `;
 
 const AnimatedSpan = styled.span`
   display: inline-block;
-  opacity: ${props => props.visible ? 1 : 0};
-  animation: ${props => props.visible ? flyInAnimation : 'none'} 0.04s ease-out forwards;
+  animation: ${flyInAnimation} 0.5s ease-out forwards;
 `;
 
 const CitationsSection = styled.div`
   margin-top: 10px;
   font-size: 0.9em;
-  opacity: 0;
-  animation: ${flyInAnimation} 0.3s forwards;
-  animation-delay: 0.2s;
 `;
 
-const PDFPreviewContainer = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-`;
-
-const PDFPreview = styled.div`
-  background-color: white;
-  padding: 20px;
-  border-radius: 8px;
-  width: 80%;
-  height: 80%;
-  display: flex;
-  flex-direction: column;
-`;
-
-const PDFEmbed = styled.embed`
-  width: 100%;
-  height: 100%;
-  border: none;
-`;
-
-const CloseButton = styled.button`
-  align-self: flex-end;
-  background-color: #0078D7;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-bottom: 10px;
-`;
-
-const LoadingSpinner = styled.div`
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #0078D7;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin: auto;
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
-
-const splitTextAndEmoji = (text) => {
-  return Array.from(text.matchAll(/\p{Extended_Pictographic}|\S|\s/gu)).map(m => m[0]);
-};
-
-function ChatSection() {
+function ChatSection({ indexName }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [pdfPreview, setPDFPreview] = useState(null);
-  const [isLoadingPDF, setIsLoadingPDF] = useState(false);
   const messagesContainerRef = useRef(null);
-  const animationQueueRef = useRef([]);
-  const isAnimatingRef = useRef(false);
 
   useEffect(() => {
-    const storedMessages = localStorage.getItem('chatHistory');
-    if (storedMessages) {
-      setMessages(JSON.parse(storedMessages).map(msg => ({
-        ...msg,
-        animatedContent: msg.content,
-        isAnimating: false
-      })));
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('chatHistory', JSON.stringify(messages));
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
-  const animateText = () => {
-    if (animationQueueRef.current.length > 0) {
-      const { messageIndex, char } = animationQueueRef.current.shift();
-      setMessages(prevMessages => {
-        const newMessages = [...prevMessages];
-        const message = newMessages[messageIndex];
-        message.animatedContent += char;
-        return newMessages;
-      });
-      requestAnimationFrame(animateText);
-    } else {
-      isAnimatingRef.current = false;
-    }
-  };
-
-  const queueTextAnimation = (messageIndex, text) => {
-    const chars = text.split('');
-    chars.forEach(char => {
-      animationQueueRef.current.push({ messageIndex, char });
-    });
-    if (!isAnimatingRef.current) {
-      isAnimatingRef.current = true;
-      requestAnimationFrame(animateText);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim() || isProcessing) return;
 
-    setMessages(prev => [...prev, { role: 'user', content: input, animatedContent: input, isAnimating: false }]);
+    setMessages(prev => [...prev, { role: 'user', content: input }]);
     setInput('');
     setIsProcessing(true);
 
@@ -202,14 +125,14 @@ function ChatSection() {
       const response = await fetch('/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [{ role: 'user', content: input }] })
+        body: JSON.stringify({ messages: [{ role: 'user', content: input }], index_name: indexName })
       });
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
 
-      setMessages(prev => [...prev, { role: 'assistant', content: '', animatedContent: '', isAnimating: true }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: '', citations: [] }]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -227,10 +150,11 @@ function ChatSection() {
               const parsed = JSON.parse(data);
               if (parsed.choices && parsed.choices[0].delta.content) {
                 setMessages(prev => {
+                  if (window.lastMessage === parsed.choices[0].delta.content) return prev;
+                  window.lastMessage = parsed.choices[0].delta.content;
                   const newMessages = [...prev];
                   const lastMessage = newMessages[newMessages.length - 1];
                   lastMessage.content += parsed.choices[0].delta.content;
-                  queueTextAnimation(newMessages.length - 1, parsed.choices[0].delta.content);
                   return newMessages;
                 });
               }
@@ -252,45 +176,60 @@ function ChatSection() {
       console.error('Error:', error);
       setMessages(prev => [
         ...prev, 
-        { role: 'assistant', content: 'An error occurred while processing your request.', animatedContent: 'An error occurred while processing your request.', isAnimating: false }
+        { role: 'assistant', content: 'An error occurred while processing your request.', citations: [] }
       ]);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleCitationClick = async (citation) => {
-    setIsLoadingPDF(true);
-    try {
-      const response = await fetch(`http://localhost:5000/references/${encodeURIComponent(citation.filepath)}`);
-      if (response.ok) {
-        const pdfContent = await response.text();
-        setPDFPreview(pdfContent);
-      } else {
-        console.error('Error fetching PDF:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error fetching PDF:', error);
-    } finally {
-      setIsLoadingPDF(false);
-    }
+  const sanitizeHTML = (str) => {
+    return str.replace(/[&<>"']/g, (match) => {
+      const escape = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      };
+      return escape[match];
+    });
+  };
+  const formatMessage = (content) => {
+    let formatted = sanitizeHTML(content);
+    
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+    formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    formatted = formatted.replace(/^(#{1,6})\s(.+)/gm, (match, hashes, title) => {
+      const level = hashes.length;
+      return `<h${level}>${title}</h${level}>`;
+    });
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    return formatted;
   };
 
   const renderMessage = (message, index) => {
+    const renderedContent = message.role === 'assistant'
+      ? <div dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }} />
+      : message.content;
+
     return (
       <Message key={index} className={message.role}>
-        {splitTextAndEmoji(message.animatedContent).map((char, charIndex) => (
-          <AnimatedSpan key={charIndex} visible={true}>
-            {char === ' ' ? '\u00A0' : char}
-          </AnimatedSpan>
-        ))}
+        {message.role === 'assistant' ? (
+          <AnimatedSpan>{renderedContent}</AnimatedSpan>
+        ) : (
+          renderedContent
+        )}
         {message.citations && message.citations.length > 0 && (
           <CitationsSection>
             <h4>Citations</h4>
             <ul>
               {message.citations.map((citation, citationIndex) => (
                 <li key={citationIndex}>
-                  <a href="#" onClick={() => handleCitationClick(citation)}>{citation.title}</a> [doc{citationIndex}]
+                  <a href="#">{citation.title}</a> [doc{citationIndex}]
                 </li>
               ))}
             </ul>
@@ -315,18 +254,6 @@ function ChatSection() {
         />
         <button type="submit" disabled={isProcessing}>Send</button>
       </MessageForm>
-      {(pdfPreview || isLoadingPDF) && (
-        <PDFPreviewContainer>
-          <PDFPreview>
-            <CloseButton onClick={() => {setPDFPreview(null); setIsLoadingPDF(false);}}>Close</CloseButton>
-            {isLoadingPDF ? (
-              <LoadingSpinner />
-            ) : (
-              <PDFEmbed src={`data:application/pdf;base64,${pdfPreview}`} type="application/pdf" />
-            )}
-          </PDFPreview>
-        </PDFPreviewContainer>
-      )}
     </ChatContainer>
   );
 }

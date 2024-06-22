@@ -19,15 +19,12 @@ def create_container(blob_service_client, container_name):
     except Exception as e:
         print(f"Container '{container_name}' already exists: {e}")
 
-def create_user_containers(user_id):
+def create_index_containers(user_id, index_name, is_restricted):
     blob_service_client = initialize_blob_service()
+    prefix = f"{user_id}-" if is_restricted else "open-"
     container_names = [
-        f"{user_id}-ingestion",
-        f"{user_id}-reference",
-        f"{user_id}-folder1-ingestion",
-        f"{user_id}-folder1-reference",
-        f"{user_id}-folder2-ingestion",
-        f"{user_id}-folder2-reference"
+        f"{prefix}{index_name}-ingestion",
+        f"{prefix}{index_name}-reference"
     ]
     sanitized_container_names = [sanitize_container_name(name) for name in container_names]
     
@@ -55,3 +52,29 @@ def delete_file_from_blob(container_name, filename):
     container_client = blob_service_client.get_container_client(container_name)
     blob_client = container_client.get_blob_client(filename)
     blob_client.delete_blob()
+
+def list_indexes():
+    blob_service_client = initialize_blob_service()
+    containers = blob_service_client.list_containers()
+    indexes = set()
+    for container in containers:
+        name = container.name
+        if name.endswith('-ingestion'):
+            index_name = name[:-10]  # Remove '-ingestion' suffix
+            if index_name.startswith('open-'):
+                indexes.add((index_name[5:], False))  # Remove 'open-' prefix and mark as not restricted
+            else:
+                user_id, index_name = index_name.rsplit("-", 1)
+                indexes.add((index_name, True))  # Mark as restricted
+    return list(indexes)
+
+def delete_index(user_id, index_name, is_restricted):
+    blob_service_client = initialize_blob_service()
+    prefix = f"{user_id}-" if is_restricted else "open-"
+    container_names = [
+        f"{prefix}{index_name}-ingestion",
+        f"{prefix}{index_name}-reference"
+    ]
+    for container_name in container_names:
+        container_client = blob_service_client.get_container_client(container_name)
+        container_client.delete_container()

@@ -12,13 +12,10 @@ def create_ingestion_job(container_name):
     storage_account_name = os.getenv('STORAGE_ACCOUNT_NAME')
     subscription_id = os.getenv('SUBSCRIPTION_ID')
     resource_group = os.getenv('RESOURCE_GROUP')
-
     ada_deployment_name = os.getenv('ADA_DEPLOYMENT_NAME')
-
     storage_account_endpoint = f"https://{storage_account_name}.blob.core.windows.net/"
     storage_account_resource_id = f"ResourceId=/subscriptions/{subscription_id}/resourceGroups/{resource_group}/providers/Microsoft.Storage/storageAccounts/{storage_account_name}"
     
-
     url = f"{endpoint}/openai/ingestion/jobs/{job_id}?api-version={api_version}"
     
     headers = {
@@ -56,10 +53,9 @@ def create_ingestion_job(container_name):
         },
         "completionAction": 1 
     }
-
-    print (f"Creating ingestion job: {url}")
-    print (f"Payload: {payload}")
-    print (f"Headers: {headers}")
+    print(f"Creating ingestion job: {url}")
+    print(f"Payload: {payload}")
+    print(f"Headers: {headers}")
     
     response = requests.put(url, headers=headers, json=payload)
     
@@ -81,11 +77,9 @@ def check_job_status(url, headers):
             if response.text.find("succeeded") != -1:
                 print("Ingestion job completed successfully.")
                 break
-
             if response.text.find("failed") != -1:
                 print(f"Ingestion job failed: {response.text}")
                 break
-            
             else:
                 print("Job is still in progress. Checking again in 5 seconds...")
                 time.sleep(5)

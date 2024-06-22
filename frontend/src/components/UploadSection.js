@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 
 const UploadContainer = styled.div`
-  flex: 1;
   padding: 20px;
   background-color: #f9f9f9;
   border-radius: 8px;
-  overflow-y: auto;
+  margin-bottom: 20px;
 `;
 
 const FileList = styled.ul`
@@ -34,21 +33,29 @@ const Button = styled.button`
   margin-top: 10px;
 `;
 
-function UploadSection() {
+function UploadSection({ indexName, isRestricted, onFilesChange }) {
   const [files, setFiles] = useState([]);
   const [status, setStatus] = useState('');
 
   useEffect(() => {
-    fetchFiles();
-  }, []);
+    if (indexName) {
+      fetchFiles();
+    }
+  }, [indexName, isRestricted]);
 
   const fetchFiles = async () => {
+    if (!indexName) return;
     try {
-      const response = await fetch('/list-files');
+      const response = await fetch(`/indexes/${indexName}/files?is_restricted=${isRestricted}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
-      setFiles(data.files.default);
+      setFiles(data.files || []);
+      onFilesChange();
     } catch (error) {
       console.error('Error loading files:', error);
+      setFiles([]);
     }
   };
 
@@ -62,55 +69,37 @@ function UploadSection() {
 
     try {
       setStatus('Uploading...');
-      const response = await fetch('/upload', { method: 'POST', body: formData });
+      const response = await fetch(`/indexes/${indexName}/upload?is_restricted=${isRestricted}`, {
+        method: 'POST',
+        body: formData
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
       setStatus(data.message);
       fetchFiles();
     } catch (error) {
-      setStatus('Upload failed');
-      console.error('Error:', error);
-    }
-  };
-
-  const handleDelete = async (filename) => {
-    try {
-      await fetch(`/delete-file/${encodeURIComponent(filename)}`, { method: 'DELETE' });
-      fetchFiles();
-    } catch (error) {
-      console.error('Error deleting file:', error);
-    }
-  };
-
-  const handleIndex = async () => {
-    try {
-      setStatus('Indexing files...');
-      const response = await fetch('/index-files', { method: 'POST' });
-      const data = await response.json();
-      setStatus(data.message);
-    } catch (error) {
-      setStatus('Indexing failed');
+      setStatus('Upload failed: ' + error.message);
       console.error('Error:', error);
     }
   };
 
   return (
     <UploadContainer>
-      <h2>Upload File</h2>
+      <h3>Upload Files to {indexName}</h3>
       <form onSubmit={handleUpload}>
         <input type="file" name="file" />
         <Button type="submit">Upload</Button>
       </form>
       <p>{status}</p>
-      <h3>Uploaded Files</h3>
       <FileList>
         {files.map((file, index) => (
           <FileItem key={index}>
             <span>{file}</span>
-            <Button onClick={() => handleDelete(file)}>Remove</Button>
           </FileItem>
         ))}
       </FileList>
-      <Button onClick={handleIndex}>Index Files</Button>
     </UploadContainer>
   );
 }
