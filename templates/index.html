@@ -13,7 +13,7 @@
                 <ul>
                     <li class="active"><a href="#">💬 Chat</a></li>
                     <li><a id="show-upload" href="#">📤 Upload</a></li>
-                    <li class="coming-soon"><a href="#">🕵️ Research</a></li>
+                    <li><a href="#">🕵️ Research</a></li>
                     <li><a href="#" id="clear-chat-history">🗑️ Clear</a></li>
                 </ul>
             </nav>
@@ -41,6 +41,43 @@
                 <br>
                 <button id="index-files">Index Files</button>
                 <div id="index-status"></div>
+            </div>
+            <div class="research-section hidden" id="research-section">
+                <h2>Research</h2>
+                <div class="folder-upload">
+                    <h3>Folder 1</h3>
+                    <div id="folder1-upload-status"></div>
+                    <form id="folder1-upload-form">
+                        <div class="file-input-wrapper">
+                            <input type="file" id="folder1-file-input">
+                            <button type="submit">Upload</button>
+                        </div>
+                    </form>
+                    <div class="uploaded-files">
+                        <h3>Previously Uploaded Files</h3>
+                        <ul id="folder1-file-list"></ul>
+                    </div>
+                    <br>
+                    <button id="folder1-index-files">Index Files</button>
+                    <div id="folder1-index-status"></div>
+                </div>
+                <div class="folder-upload">
+                    <h3>Folder 2</h3>
+                    <div id="folder2-upload-status"></div>
+                    <form id="folder2-upload-form">
+                        <div class="file-input-wrapper">
+                            <input type="file" id="folder2-file-input">
+                            <button type="submit">Upload</button>
+                        </div>
+                    </form>
+                    <div class="uploaded-files">
+                        <h3>Previously Uploaded Files</h3>
+                        <ul id="folder2-file-list"></ul>
+                    </div>
+                    <br>
+                    <button id="folder2-index-files">Index Files</button>
+                    <div id="folder2-index-status"></div>
+                </div>
             </div>
             <div class="chat-section">
                 <div id="chat-container"></div>

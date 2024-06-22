@@ -324,3 +324,14 @@ input[type="text"]:focus {
         transform: translateY(0);
     }
 }
+
+.research-section {
+    margin-bottom: 20px;
+}
+
+.folder-upload {
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}

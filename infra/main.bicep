@@ -118,7 +118,7 @@ module search './core/search/search-services.bicep' = {
     location: location
     tags: tags
     sku: {
-      name: 'standard'
+      name: 'basic'
     }
     authOptions: {
       aadOrApiKey: {
