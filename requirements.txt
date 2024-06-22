@@ -7,3 +7,4 @@ pdf2image
 Pillow
 uuid
 azure-ai-documentintelligence
+flask-cors

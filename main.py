@@ -1,11 +1,14 @@
 import os
 from flask import Flask, render_template
 from dotenv import load_dotenv
+from flask_cors import CORS
 from app.routes import configure_routes
 
 load_dotenv()
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
+CORS(app)  # Enable CORS for the entire application
+
 UPLOAD_FOLDER = '/tmp/uploads'
 PROCESSED_FOLDER = '/tmp/processed'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER

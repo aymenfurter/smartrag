@@ -1,8 +1,7 @@
-import os
-import requests
-from flask import Response, jsonify
-from .blob_service import sanitize_container_name
 import json
+from flask import jsonify
+from .blob_service import sanitize_container_name
+from .azure_openai import create_payload, create_data_source, stream_response, get_openai_config
 
 def chat_with_data(data, user_id):
     messages = data.get("messages", [])
@@ -14,43 +13,13 @@ def chat_with_data(data, user_id):
 
     container_name = sanitize_container_name(f"{user_id}-ingestion")
 
-    OPENAI_ENDPOINT = os.getenv('OPENAI_ENDPOINT')
-    AOAI_API_KEY = os.getenv('AOAI_API_KEY')
-    AZURE_OPENAI_DEPLOYMENT_ID = "gpt-4o"
-    SEARCH_SERVICE_ENDPOINT = os.getenv('SEARCH_SERVICE_ENDPOINT')
-    SEARCH_SERVICE_API_KEY = os.getenv('SEARCH_SERVICE_API_KEY')
-    AZURE_AI_SEARCH_INDEX = container_name
-
-    url = f"{OPENAI_ENDPOINT}/openai/deployments/{AZURE_OPENAI_DEPLOYMENT_ID}/chat/completions?api-version=2024-02-15-preview"
+    config = get_openai_config()
+    url = f"{config['OPENAI_ENDPOINT']}/openai/deployments/{config['AZURE_OPENAI_DEPLOYMENT_ID']}/chat/completions?api-version=2024-02-15-preview"
     headers = {
         "Content-Type": "application/json",
-        "api-key": AOAI_API_KEY
+        "api-key": config['AOAI_API_KEY']
     }
-    payload = {
-        "data_sources": [
-            {
-                "type": "AzureCognitiveSearch",
-                "parameters": {
-                    "endpoint": SEARCH_SERVICE_ENDPOINT,
-                    "key": SEARCH_SERVICE_API_KEY,
-                    "index_name": AZURE_AI_SEARCH_INDEX
-                }
-            }
-        ],
-        "messages": messages,
-        "context": context,
-        "stream": True,
-        "max_tokens": 1000,
-        "session_state": session_state
-    }
+    data_source = create_data_source(config['SEARCH_SERVICE_ENDPOINT'], config['SEARCH_SERVICE_API_KEY'], container_name)
+    payload = create_payload(messages, context, session_state, [data_source])
 
-    def stream():
-        response = requests.post(url, headers=headers, json=payload, stream=True)
-        if response.status_code != 200:
-            yield json.dumps({"error": f"Failed to retrieve chat response: {response.status_code}, {response.text}"})
-        else:
-            for line in response.iter_lines():
-                if line:
-                    yield line.decode('utf-8') + "\n"
-
-    return Response(stream(), content_type='application/x-ndjson')
+    return stream_response(url, headers, payload)

@@ -13,48 +13,28 @@ def sanitize_container_name(name):
     sanitized = re.sub(r'[^a-z0-9-]', '-', name.lower())
     return sanitized[:63]
 
+def create_container(blob_service_client, container_name):
+    try:
+        blob_service_client.create_container(container_name)
+    except Exception as e:
+        print(f"Container '{container_name}' already exists: {e}")
+
 def create_user_containers(user_id):
     blob_service_client = initialize_blob_service()
-    ingestion_container_name = sanitize_container_name(f"{user_id}-ingestion")
-    reference_container_name = sanitize_container_name(f"{user_id}-reference")
-    folder1_ingestion_container_name = sanitize_container_name(f"{user_id}-folder1-ingestion")
-    folder1_reference_container_name = sanitize_container_name(f"{user_id}-folder1-reference")
-    folder2_ingestion_container_name = sanitize_container_name(f"{user_id}-folder2-ingestion")
-    folder2_reference_container_name = sanitize_container_name(f"{user_id}-folder2-reference")
+    container_names = [
+        f"{user_id}-ingestion",
+        f"{user_id}-reference",
+        f"{user_id}-folder1-ingestion",
+        f"{user_id}-folder1-reference",
+        f"{user_id}-folder2-ingestion",
+        f"{user_id}-folder2-reference"
+    ]
+    sanitized_container_names = [sanitize_container_name(name) for name in container_names]
     
-    new_ingestion_container_created = False
-    try:
-        blob_service_client.create_container(ingestion_container_name)
-        new_ingestion_container_created = True
-    except Exception as e:
-        print(f"Ingestion container already exists: {e}")
+    for name in sanitized_container_names:
+        create_container(blob_service_client, name)
     
-    try:
-        blob_service_client.create_container(reference_container_name)
-    except Exception as e:
-        print(f"Reference container already exists: {e}")
-    
-    try:
-        blob_service_client.create_container(folder1_ingestion_container_name)
-    except Exception as e:
-        print(f"Folder1 ingestion container already exists: {e}")
-    
-    try:
-        blob_service_client.create_container(folder1_reference_container_name)
-    except Exception as e:
-        print(f"Folder1 reference container already exists: {e}")
-    
-    try:
-        blob_service_client.create_container(folder2_ingestion_container_name)
-    except Exception as e:
-        print(f"Folder2 ingestion container already exists: {e}")
-    
-    try:
-        blob_service_client.create_container(folder2_reference_container_name)
-    except Exception as e:
-        print(f"Folder2 reference container already exists: {e}")
-    
-    return ingestion_container_name, reference_container_name, folder1_ingestion_container_name, folder1_reference_container_name, folder2_ingestion_container_name, folder2_reference_container_name
+    return sanitized_container_names
 
 def upload_files_to_blob(container_name, file_paths):
     blob_service_client = initialize_blob_service()

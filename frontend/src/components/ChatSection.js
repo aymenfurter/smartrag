@@ -66,7 +66,7 @@ const Message = styled.div`
 const AnimatedSpan = styled.span`
   display: inline-block;
   opacity: ${props => props.visible ? 1 : 0};
-  animation: ${props => props.visible ? flyInAnimation : 'none'} 0.1s ease-out forwards;
+  animation: ${props => props.visible ? flyInAnimation : 'none'} 0.04s ease-out forwards;
 `;
 
 const CitationsSection = styled.div`
