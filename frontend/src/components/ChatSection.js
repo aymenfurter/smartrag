@@ -1,3 +1,4 @@
+import { prefix } from '@fortawesome/free-solid-svg-icons';
 import React, { useState, useEffect, useRef } from 'react';
 import styled, { keyframes } from 'styled-components';
 
@@ -252,7 +253,12 @@ function ChatSection({ indexName, isRestricted, onStartResearch }) {
   };
 
   const handleCitationClick = (citation) => {
-    const pdfUrl = `http://localhost:5000/pdf/${indexName}/${encodeURIComponent(citation.filepath)}?is_restricted=${isRestricted}`;
+    let prefix = "/";
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      prefix  = "http://localhost:5000/";
+    }
+
+    const pdfUrl = `${prefix}pdf/${indexName}/${encodeURIComponent(citation.filepath)}?is_restricted=${isRestricted}`;
     setPDFPreview(pdfUrl);
   };
 

@@ -11,7 +11,7 @@ from .pdf_processing import convert_pdf_page_to_png
 from .blob_service import upload_files_to_blob, create_index_containers, list_files_in_container, delete_file_from_blob, list_indexes, delete_index, initialize_blob_service
 from .utils import split_pdf_to_pages, get_user_id
 from .doc_intelligence import convert_pdf_page_to_md
-from .ingestion_job import create_ingestion_job
+from .ingestion_job import create_ingestion_job, delete_ingestion_index 
 from .research import research_with_data
 from .chat_service import chat_with_data
 
@@ -43,6 +43,9 @@ def configure_routes(app):
         user_id = get_user_id(request)
         is_restricted = request.args.get('is_restricted', 'true').lower() == 'true'
         delete_index(user_id, index_name, is_restricted)
+
+        prefix = f"{user_id}-" if is_restricted else "open-"
+        delete_ingestion_index(prefix + index_name + "-ingestion") 
         return jsonify({"message": "Index deleted successfully"}), 200
 
     @app.route('/indexes/<index_name>/upload', methods=['POST'])

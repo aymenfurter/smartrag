@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTrash } from '@fortawesome/free-solid-svg-icons';
 
 const RibbonContainer = styled.div`
   display: flex;
@@ -15,9 +17,22 @@ const IndexItem = styled.div`
   border-radius: 5px;
   cursor: pointer;
   transition: all 0.3s ease;
-
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   &:hover {
     background-color: ${props => props.selected ? '#0078D7' : '#d0d0d0'};
+  }
+`;
+
+const DeleteButton = styled.button`
+  background: none;
+  border: none;
+  color: ${props => props.selected ? 'white' : '#666'};
+  cursor: pointer;
+  padding: 5px;
+  &:hover {
+    color: #ff0000;
   }
 `;
 
@@ -56,11 +71,9 @@ const StyledCheckbox = styled.input`
   margin-right: 10px;
   cursor: pointer;
   position: relative;
-
   &:checked {
     background-color: #0078D7;
   }
-
   &:checked::after {
     content: '✓';
     position: absolute;
@@ -75,14 +88,13 @@ const CheckboxLabel = styled.label`
   cursor: pointer;
 `;
 
-function IndexRibbon({ indexes, selectedIndex, onSelectIndex, onIndexesChange }) {
+function IndexRibbon({ indexes, selectedIndex, onSelectIndex, onIndexesChange, onDeleteIndex }) {
   const [newIndexName, setNewIndexName] = useState('');
   const [isRestricted, setIsRestricted] = useState(true);
 
   const handleCreateIndex = async (e) => {
     e.preventDefault();
     if (!newIndexName) return;
-
     try {
       const response = await fetch('/indexes', {
         method: 'POST',
@@ -101,6 +113,24 @@ function IndexRibbon({ indexes, selectedIndex, onSelectIndex, onIndexesChange })
     }
   };
 
+  const handleDeleteIndex = async (indexName, isRestricted) => {
+    if (window.confirm(`Are you sure you want to delete the index "${indexName}"?`)) {
+      try {
+        const response = await fetch(`/indexes/${indexName}?is_restricted=${isRestricted}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log(data.message);
+        onDeleteIndex(indexName, isRestricted);
+      } catch (error) {
+        console.error('Error deleting index:', error);
+      }
+    }
+  };
+
   return (
     <RibbonContainer>
       {indexes.map((index, i) => (
@@ -109,7 +139,16 @@ function IndexRibbon({ indexes, selectedIndex, onSelectIndex, onIndexesChange })
           selected={selectedIndex && selectedIndex[0] === index[0] && selectedIndex[1] === index[1]}
           onClick={() => onSelectIndex(index)}
         >
-          {index[0]} ({index[1] ? 'Restricted' : 'Open'})
+          <span>{index[0]} ({index[1] ? 'Restricted' : 'Open'})</span>
+          <DeleteButton
+            selected={selectedIndex && selectedIndex[0] === index[0] && selectedIndex[1] === index[1]}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteIndex(index[0], index[1]);
+            }}
+          >
+            <FontAwesomeIcon icon={faTrash} />
+          </DeleteButton>
         </IndexItem>
       ))}
       <CreateIndexForm onSubmit={handleCreateIndex}>

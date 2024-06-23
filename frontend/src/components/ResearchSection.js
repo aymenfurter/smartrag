@@ -293,7 +293,12 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
   };
 
   const handleCitationClick = useCallback((citation, dataSource) => {
-    const pdfUrl = `http://localhost:5000/pdf/${dataSource.index}/${encodeURIComponent(citation)}?is_restricted=${dataSource.isRestricted}`;
+    let prefix = "/";
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      prefix  = "http://localhost:5000/";
+    }
+
+    const pdfUrl = `${prefix}pdf/${dataSource.index}/${encodeURIComponent(citation)}?is_restricted=${dataSource.isRestricted}`;
     setPDFPreview(pdfUrl);
   }, []);
 

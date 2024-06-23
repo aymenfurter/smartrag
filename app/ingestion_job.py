@@ -91,3 +91,18 @@ def check_job_status(url, headers):
         else:
             print(f"Failed to get job status: {response.status_code}, {response.text}")
             return "error"
+
+def delete_ingestion_index(job_id):
+    endpoint = os.getenv('SEARCH_SERVICE_ENDPOINT')
+    api_key = os.getenv('SEARCH_SERVICE_API_KEY')
+    
+    url = f"{endpoint}/indexes/{job_id}?api-version=2020-06-30"
+    
+    headers = {
+        'api-key': api_key,
+        'Opc-Apim-Subscription-Key': api_key,
+        'Content-Type': 'application/json'
+    }
+    
+    requests.delete(url, headers=headers)
+    print(f"Ingestion job deleted successfully.")

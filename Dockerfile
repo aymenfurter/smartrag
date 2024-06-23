@@ -1,22 +1,22 @@
-# Use the official Python image from the Docker Hub
-FROM python:3.10-slim
+# Stage 1: Frontend build
+FROM node:18 AS frontend-builder
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
 
-# Set environment variables
-ENV PYTHONUNBUFFERED 1
-
-# Set the working directory in the container
+# Stage 2: Backend build
+FROM python:3.9-slim
 WORKDIR /app
-
-# Copy the requirements file into the container
-COPY requirements.txt /app/
-
-# Install the dependencies
-RUN pip install --upgrade pip
-RUN apt-get update && apt-get install -y poppler-utils
-RUN pip install -r requirements.txt
-
-# Copy the rest of the application code into the container
-COPY . /app/
-
-# Run the Flask application
+COPY requirements.txt .
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends curl poppler-utils && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
+COPY . .
+COPY --from=frontend-builder /frontend/build /app/static
+EXPOSE 5000
 CMD ["python", "main.py"]
