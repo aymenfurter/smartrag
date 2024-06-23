@@ -18,7 +18,8 @@ from .chat_service import chat_with_data
 def configure_routes(app):
     @app.route('/indexes', methods=['GET'])
     def get_indexes():
-        indexes = list_indexes()
+        user_id = get_user_id(request)
+        indexes = list_indexes(user_id)
         return jsonify({"indexes": indexes})
 
     @app.route('/indexes', methods=['POST'])
@@ -150,8 +151,10 @@ def configure_routes(app):
         prefix = f"{user_id}-" if is_restricted else "open-"
         container_name = f"{prefix}{index_name}-reference"
 
+        if not is_restricted and user_id in index_name:
+            return jsonify({"error": "Unauthorized access to PDF"}), 403
+
         try:
-            # Preprocess the filename
             base_filename, page_info = filename.rsplit('___', 1)
             page_number = page_info.split('.')[0].replace('Page', '')
             pdf_filename = f"{base_filename}___Page{page_number}.pdf"

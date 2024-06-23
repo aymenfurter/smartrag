@@ -187,7 +187,7 @@ function ChatSection({ indexName, isRestricted, onStartResearch }) {
       const response = await fetch('/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [{ role: 'user', content: input }], index_name: indexName })
+        body: JSON.stringify({ messages: [{ role: 'user', content: input }], index_name: indexName, is_restricted: isRestricted })
       });
 
       const reader = response.body.getReader();

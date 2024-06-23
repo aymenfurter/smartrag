@@ -53,7 +53,7 @@ def delete_file_from_blob(container_name, filename):
     blob_client = container_client.get_blob_client(filename)
     blob_client.delete_blob()
 
-def list_indexes():
+def list_indexes(user_id):
     blob_service_client = initialize_blob_service()
     containers = blob_service_client.list_containers()
     indexes = set()
@@ -64,8 +64,9 @@ def list_indexes():
             if index_name.startswith('open-'):
                 indexes.add((index_name[5:], False))  
             else:
-                user_id, index_name = index_name.rsplit("-", 1)
-                indexes.add((index_name, True))
+                container_user_id, index_name = index_name.rsplit("-", 1)
+                if container_user_id == user_id:
+                    indexes.add((index_name, True))
     return list(indexes)
 
 def delete_index(user_id, index_name, is_restricted):
