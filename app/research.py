@@ -130,15 +130,17 @@ def research_with_data(data, user_id):
         is_restricted = source.get("isRestricted", True)
         prefix = f"{user_id}-" if is_restricted else "open-"
         search_index = sanitize_container_name(f"{prefix}{source['index']}-ingestion")
+        index_name = source.get("name", source.get("index", ""))
         researcher = create_agent(
-            f"{source['name']}Researcher",
-            f"""I am  a Researcher. I am an expert for {source['name']}. I will investigate and research any questions regarding this specific data source. I will always use the search feature to find the information I need.  
+            f"{index_name}Researcher",
+            f"""I am  a Researcher. I am an expert for {index_name}. I will investigate and research any questions regarding this specific data source. I will always use the search feature to find the information I need.  
 
             I may get information from other researches but I must always use the search feature to find the information I need, specifically to my expertise and data source.
 
-            My data source is: {source['name']}
+            My data source is: {index_name}
 
             {source['description']}
+
             Through the search feature, I am querying a semantic search engine so it's good to have long, detailed & descriptive sentences. I can try out to rephrase your questions to get more information.
 
             I will make sure to detail your search queries as much as possible.""",
@@ -147,15 +149,15 @@ def research_with_data(data, user_id):
         researchers.append(researcher)
 
         def create_lookup_function(index):
-            def lookup_information(question: Annotated[str, "Use this function to search for information on the data source: " + source["name"]]):
+            def lookup_information(question: Annotated[str, "Use this function to search for information on the data source: " + index_name]) -> str:
                 return search(question, index)
             return lookup_information
 
         lookup_function = create_lookup_function(search_index)
         
         researcher.register_for_llm(
-            name=f"lookup_{source['name']}",
-            description=f"Search for information in {source['name']}"
+            name=f"lookup_{index_name}",
+            description=f"Search for information in {index_name}"
         )(lookup_function)
 
         user_proxy.register_for_execution(
