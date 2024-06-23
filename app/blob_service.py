@@ -2,12 +2,17 @@ import os
 import re
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
+from azure.core.credentials import AzureKeyCredential
 
 def initialize_blob_service():
-    account_name = os.getenv('STORAGE_ACCOUNT_NAME')
     credential = DefaultAzureCredential()
-    blob_service_client = BlobServiceClient(account_url=f"https://{account_name}.blob.core.windows.net", credential=credential)
-    return blob_service_client
+    account_name = os.getenv('STORAGE_ACCOUNT_NAME')
+    storage_key = os.getenv('STORAGE_ACCOUNT_KEY')
+
+    if storage_key:
+        credential = storage_key
+
+    return BlobServiceClient(account_url=f"https://{account_name}.blob.core.windows.net", credential=credential)
 
 def sanitize_container_name(name):
     sanitized = re.sub(r'[^a-z0-9-]', '-', name.lower())

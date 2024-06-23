@@ -4,10 +4,10 @@ This application is an AI-powered research assistant that leverages Azure OpenAI
 
 ## Features
 
-- Upload and index PDF documents
-- Chat interface for querying indexed documents
-- Multi-agent research system for in-depth analysis
-- Document preview and citation support
+- Upload and index PDF documents through ingestion jobs.
+- Chat interface for querying indexed documents.
+- Multi-agent research system for in-depth analysis.
+- Document preview and citation support.
 
 ## Quick Start
 
@@ -19,6 +19,7 @@ This application is an AI-powered research assistant that leverages Azure OpenAI
 
 2. Create a `.env` file in the root directory with the following variables:
    ```
+   DOCUMENTINTELLIGENCE_KEY=your_value
    STORAGE_ACCOUNT_NAME=your_value
    DOCUMENTINTELLIGENCE_ENDPOINT=your_value
    RESOURCE_GROUP=your_value
@@ -29,6 +30,7 @@ This application is an AI-powered research assistant that leverages Azure OpenAI
    OPENAI_ENDPOINT=your_value
    ADA_DEPLOYMENT_NAME=your_value
    AZURE_OPENAI_DEPLOYMENT_ID=your_value
+   STORAGE_ACCOUNT_KEY=your_value
    ```
 
 3. Build the Docker image:
