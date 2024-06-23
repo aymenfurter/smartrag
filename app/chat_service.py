@@ -23,5 +23,5 @@ def chat_with_data(data, user_id):
         "api-key": config['AOAI_API_KEY']
     }
     data_source = create_data_source(config['SEARCH_SERVICE_ENDPOINT'], config['SEARCH_SERVICE_API_KEY'], container_name)
-    payload = create_payload(messages, context, session_state, [data_source])
+    payload = create_payload(messages, context, session_state, [data_source], True)
     return stream_response(url, headers, payload)

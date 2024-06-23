@@ -9,6 +9,7 @@ from .blob_service import upload_files_to_blob, create_index_containers, list_fi
 from .utils import split_pdf_to_pages, get_user_id
 from .doc_intelligence import convert_pdf_page_to_md
 from .ingestion_job import create_ingestion_job
+from .research import research_with_data
 from .chat_service import chat_with_data
 
 def configure_routes(app):
@@ -94,6 +95,12 @@ def configure_routes(app):
             return jsonify({"files": list(base_filenames)}), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+    
+    @app.route('/research', methods=['POST'])
+    def research():
+        data = request.json
+        user_id = get_user_id(request)
+        return research_with_data(data, user_id)
 
     @app.route('/indexes/<index_name>/files/<filename>', methods=['DELETE'])
     def delete_file(index_name, filename):

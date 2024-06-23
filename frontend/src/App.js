@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import Header from './components/Header';
 import ChatSection from './components/ChatSection';
 import UploadSection from './components/UploadSection';
+import ResearchSection from './components/ResearchSection';
 import IndexRibbon from './components/IndexRibbon';
 
 const Container = styled.div`
@@ -44,6 +45,7 @@ function App() {
   const [activeSection, setActiveSection] = useState('chat');
   const [indexes, setIndexes] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(null);
+  const [researchQuestion, setResearchQuestion] = useState('');
 
   useEffect(() => {
     fetchIndexes();
@@ -63,6 +65,12 @@ function App() {
     setSelectedIndex(index);
   };
 
+  const handleStartResearch = (question, indexName, isRestricted) => {
+    setResearchQuestion(question);
+    setSelectedIndex([indexName, isRestricted]);
+    setActiveSection('research');
+  };
+
   return (
     <Container>
       <Header setActiveSection={setActiveSection} />
@@ -80,6 +88,7 @@ function App() {
             <ChatSection 
               indexName={selectedIndex[0]} 
               isRestricted={selectedIndex[1]} 
+              onStartResearch={handleStartResearch}
             />
           )}
           {activeSection === 'upload' && selectedIndex && (
@@ -87,6 +96,13 @@ function App() {
               indexName={selectedIndex[0]} 
               isRestricted={selectedIndex[1]}
               onFilesChange={fetchIndexes}
+            />
+          )}
+          {activeSection === 'research' && (
+            <ResearchSection 
+              indexes={indexes}
+              initialQuestion={researchQuestion}
+              initialIndex={selectedIndex}
             />
           )}
         </ContentArea>

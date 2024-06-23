@@ -19,6 +19,13 @@ const MessagesContainer = styled.div`
 
 const MessageForm = styled.form`
   display: flex;
+  align-items: center;
+`;
+
+const InputContainer = styled.div`
+  flex: 1;
+  display: flex;
+  margin-right: 10px;
 
   input {
     flex: 1;
@@ -26,15 +33,29 @@ const MessageForm = styled.form`
     border: 1px solid #ccc;
     border-radius: 4px;
   }
+`;
 
-  button {
-    background-color: #0078D7;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-left: 10px;
+const ButtonContainer = styled.div`
+  display: flex;
+`;
+
+const Button = styled.button`
+  background-color: ${props => props.primary ? '#0078D7' : '#f0f0f0'};
+  color: ${props => props.primary ? 'white' : '#333'};
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 10px;
+  transition: background-color 0.3s ease;
+
+  &:hover {
+    background-color: ${props => props.primary ? '#005a9e' : '#e0e0e0'};
+  }
+
+  &:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
   }
 `;
 
@@ -101,7 +122,7 @@ const CitationsSection = styled.div`
   font-size: 0.9em;
 `;
 
-function ChatSection({ indexName }) {
+function ChatSection({ indexName, isRestricted, onStartResearch }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -183,32 +204,10 @@ function ChatSection({ indexName }) {
     }
   };
 
-  const sanitizeHTML = (str) => {
-    return str.replace(/[&<>"']/g, (match) => {
-      const escape = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-      };
-      return escape[match];
-    });
-  };
-  const formatMessage = (content) => {
-    let formatted = sanitizeHTML(content);
-    
-    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-    formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-    formatted = formatted.replace(/^(#{1,6})\s(.+)/gm, (match, hashes, title) => {
-      const level = hashes.length;
-      return `<h${level}>${title}</h${level}>`;
-    });
-    formatted = formatted.replace(/\n/g, '<br>');
-    
-    return formatted;
+  const handleStartResearch = () => {
+    if (input.trim()) {
+      onStartResearch(input, indexName, isRestricted);
+    }
   };
 
   const renderMessage = (message, index) => {
@@ -245,17 +244,56 @@ function ChatSection({ indexName }) {
         {messages.map(renderMessage)}
       </MessagesContainer>
       <MessageForm onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type your message..."
-          disabled={isProcessing}
-        />
-        <button type="submit" disabled={isProcessing}>Send</button>
+        <InputContainer>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type your message..."
+            disabled={isProcessing}
+          />
+        </InputContainer>
+        <ButtonContainer>
+          <Button type="submit" disabled={isProcessing} primary>Send</Button>
+          <Button type="button" onClick={handleStartResearch} disabled={isProcessing || !input.trim()}>
+            🕵️ Start Research
+          </Button>
+        </ButtonContainer>
       </MessageForm>
     </ChatContainer>
   );
 }
+
+const formatMessage = (content) => {
+  let formatted = sanitizeHTML(content);
+  
+  formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+  formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+  formatted = formatted.replace(/^(#{1,6})\s(.+)/gm, (match, hashes, title) => {
+    const level = hashes.length;
+    return `<h${level}>${title}</h${level}>`;
+  });
+  formatted = formatted.replace(/\n/g, '<br>');
+  formatted = formatted.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank">$1</a>');
+  
+  return formatted;
+};
+
+const sanitizeHTML = (str) => {
+  return str.replace(/[&<>"']/g, (match) => {
+    const escape = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    };
+    return escape[match];
+  });
+};
+
+export { formatMessage };
 
 export default ChatSection;

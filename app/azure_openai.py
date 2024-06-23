@@ -4,12 +4,19 @@ import json
 from flask import jsonify, Response
 from .blob_service import sanitize_container_name
 
-def create_payload(messages, context, session_state, data_sources):
+def create_payload(messages, context, session_state, data_sources, is_streaming):
+    if not data_sources:
+        return {
+            "messages": messages,
+            "stream": is_streaming,
+            "max_tokens": 1000,
+        }
+
     return {
         "data_sources": data_sources,
         "messages": messages,
         "context": context,
-        "stream": True,
+        "stream": is_streaming,
         "max_tokens": 1000,
         "session_state": session_state
     }
