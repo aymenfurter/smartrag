@@ -60,12 +60,12 @@ def list_indexes():
     for container in containers:
         name = container.name
         if name.endswith('-ingestion'):
-            index_name = name[:-10]  # Remove '-ingestion' suffix
+            index_name = name[:-10]  
             if index_name.startswith('open-'):
-                indexes.add((index_name[5:], False))  # Remove 'open-' prefix and mark as not restricted
+                indexes.add((index_name[5:], False))  
             else:
                 user_id, index_name = index_name.rsplit("-", 1)
-                indexes.add((index_name, True))  # Mark as restricted
+                indexes.add((index_name, True))
     return list(indexes)
 
 def delete_index(user_id, index_name, is_restricted):
@@ -78,3 +78,9 @@ def delete_index(user_id, index_name, is_restricted):
     for container_name in container_names:
         container_client = blob_service_client.get_container_client(container_name)
         container_client.delete_container()
+
+def get_blob_url(container_name, blob_name):
+    blob_service_client = initialize_blob_service()
+    container_client = blob_service_client.get_container_client(container_name)
+    blob_client = container_client.get_blob_client(blob_name)
+    return blob_client.url

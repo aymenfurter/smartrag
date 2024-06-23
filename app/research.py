@@ -130,7 +130,10 @@ def research_with_data(data, user_id):
         is_restricted = source.get("isRestricted", True)
         prefix = f"{user_id}-" if is_restricted else "open-"
         search_index = sanitize_container_name(f"{prefix}{source['index']}-ingestion")
-        index_name = source.get("name", source.get("index", ""))
+        index_name = source.get("name", "")
+        if not index_name or index_name == "":
+            index_name = source.get("index", "")
+
         researcher = create_agent(
             f"{index_name}Researcher",
             f"""I am  a Researcher. I am an expert for {index_name}. I will investigate and research any questions regarding this specific data source. I will always use the search feature to find the information I need.  
@@ -161,7 +164,7 @@ def research_with_data(data, user_id):
         )(lookup_function)
 
         user_proxy.register_for_execution(
-            name=f"lookup_{source['name']}"
+            name=f"lookup_{index_name}"
         )(lookup_function)
 
     reviewer = create_reviewer_agent(llm_config)
@@ -181,8 +184,7 @@ def research_with_data(data, user_id):
         chat_result = user_proxy.initiate_chat(
             manager,
             message=question,
-            max_rounds=max_rounds,
-            force_execution=True,
+            max_rounds=max_rounds
         )
 
         print("Chat result", chat_result)

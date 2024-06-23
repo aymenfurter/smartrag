@@ -122,10 +122,51 @@ const CitationsSection = styled.div`
   font-size: 0.9em;
 `;
 
+const PDFPreviewContainer = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const PDFPreview = styled.div`
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 80%;
+  height: 80%;
+  display: flex;
+  flex-direction: column;
+`;
+
+const PDFEmbed = styled.embed`
+  width: 100%;
+  height: 100%;
+  border: none;
+`;
+
+const CloseButton = styled.button`
+  align-self: flex-end;
+  background-color: #0078D7;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 10px;
+`;
+
 function ChatSection({ indexName, isRestricted, onStartResearch }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [pdfPreview, setPDFPreview] = useState(null);
   const messagesContainerRef = useRef(null);
 
   useEffect(() => {
@@ -210,6 +251,11 @@ function ChatSection({ indexName, isRestricted, onStartResearch }) {
     }
   };
 
+  const handleCitationClick = (citation) => {
+    const pdfUrl = `http://localhost:5000/pdf/${indexName}/${encodeURIComponent(citation.filepath)}?is_restricted=${isRestricted}`;
+    setPDFPreview(pdfUrl);
+  };
+
   const renderMessage = (message, index) => {
     const renderedContent = message.role === 'assistant'
       ? <div dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }} />
@@ -228,7 +274,7 @@ function ChatSection({ indexName, isRestricted, onStartResearch }) {
             <ul>
               {message.citations.map((citation, citationIndex) => (
                 <li key={citationIndex}>
-                  <a href="#">{citation.title}</a> [doc{citationIndex}]
+                  <a href="#" onClick={() => handleCitationClick(citation)}>{citation.title}</a> [doc{citationIndex}]
                 </li>
               ))}
             </ul>
@@ -260,6 +306,14 @@ function ChatSection({ indexName, isRestricted, onStartResearch }) {
           </Button>
         </ButtonContainer>
       </MessageForm>
+      {pdfPreview && (
+        <PDFPreviewContainer>
+          <PDFPreview>
+            <CloseButton onClick={() => setPDFPreview(null)}>Close</CloseButton>
+            <PDFEmbed src={pdfPreview} type="application/pdf" />
+          </PDFPreview>
+        </PDFPreviewContainer>
+      )}
     </ChatContainer>
   );
 }

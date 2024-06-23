@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faMinus, faCog, faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
@@ -159,29 +159,73 @@ const ShowDetailsButton = styled(Button)`
   margin-top: 1rem;
 `;
 
+const PDFPreviewContainer = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const PDFPreview = styled.div`
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 80%;
+  height: 80%;
+  display: flex;
+  flex-direction: column;
+`;
+
+const PDFEmbed = styled.embed`
+  width: 100%;
+  height: 100%;
+  border: none;
+`;
+
+const CloseButton = styled.button`
+  align-self: flex-end;
+  background-color: #0078D7;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 10px;
+`;
+
+
+
 function ResearchSection({ indexes, initialQuestion = '', initialIndex = null }) {
   const [question, setQuestion] = useState(initialQuestion);
   const [dataSources, setDataSources] = useState([
     initialIndex
-      ? { index: initialIndex[0], name: '', description: '', isExpanded: false }
-      : { index: '', name: '', description: '', isExpanded: false }
+      ? { index: initialIndex[0], name: '', description: '', isExpanded: false, isRestricted: initialIndex[1] }
+      : { index: '', name: '', description: '', isExpanded: false, isRestricted: true }
   ]);
   const [isResearching, setIsResearching] = useState(false);
   const [results, setResults] = useState('');
   const [maxRounds, setMaxRounds] = useState(20);
   const [showDetails, setShowDetails] = useState(false);
   const [conversation, setConversation] = useState([]);
+  const [pdfPreview, setPDFPreview] = useState(null);
 
   useEffect(() => {
     if (initialQuestion) {
       setQuestion(initialQuestion);
     }
     if (initialIndex) {
-      setDataSources([{ index: initialIndex[0], name: '', description: '', isExpanded: false }]);
+      setDataSources([{ index: initialIndex[0], name: '', description: '', isExpanded: false, isRestricted: initialIndex[1] }]);
     }
   }, [initialQuestion, initialIndex]);
+
   const handleAddDataSource = () => {
-    setDataSources([...dataSources, { index: '', name: '', description: '', isExpanded: false }]);
+    setDataSources([...dataSources, { index: '', name: '', description: '', isExpanded: false, isRestricted: true }]);
   };
 
   const handleRemoveDataSource = (index) => {
@@ -246,6 +290,70 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
     } finally {
       setIsResearching(false);
     }
+  };
+
+  const handleCitationClick = useCallback((citation, dataSource) => {
+    const pdfUrl = `http://localhost:5000/pdf/${dataSource.index}/${encodeURIComponent(citation)}?is_restricted=${dataSource.isRestricted}`;
+    setPDFPreview(pdfUrl);
+  }, []);
+
+  const renderResults = () => {
+    if (!results) return null;
+
+    const formattedResults = formatMessage(results);
+    const resultsWithClickableLinks = formattedResults.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      (match, text, url) => {
+        const citation = url.split('/').pop();
+        return `<a href="#" data-citation="${citation}">${text}</a>`;
+      }
+    );
+
+    return (
+      <ResultsContainer>
+        <h3>Research Conclusion:</h3>
+        <div 
+          dangerouslySetInnerHTML={{ __html: resultsWithClickableLinks }}
+          onClick={(e) => {
+            if (e.target.tagName === 'A') {
+              e.preventDefault();
+              let citation = e.target.getAttribute('href');
+              const parts = citation.split('/');
+              const filename = parts.pop().replace('.md', '.pdf');
+        
+              handleCitationClick(filename, dataSources[0]);
+            }
+          
+          }}
+        />
+        <ShowDetailsButton onClick={() => setShowDetails(!showDetails)}>
+          {showDetails ? 'Hide Details' : 'Show Details'}
+          <FontAwesomeIcon icon={showDetails ? faChevronUp : faChevronDown} style={{ marginLeft: '5px' }} />
+        </ShowDetailsButton>
+        {showDetails && (
+          <ConversationContainer>
+            {conversation.map((message, index) => (
+              <Message key={index} role={message.role}>
+                <strong>{message.name || message.role}:</strong>
+                <div dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }} />
+                {message.tool_calls && (
+                  <div>
+                    <strong>Tool Calls:</strong>
+                    <pre>{JSON.stringify(message.tool_calls, null, 2)}</pre>
+                  </div>
+                )}
+                {message.tool_responses && (
+                  <div>
+                    <strong>Tool Responses:</strong>
+                    <pre>{JSON.stringify(message.tool_responses, null, 2)}</pre>
+                  </div>
+                )}
+              </Message>
+            ))}
+          </ConversationContainer>
+        )}
+      </ResultsContainer>
+    );
   };
 
   return (
@@ -319,37 +427,14 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
         </Button>
       </Form>
       {isResearching && <LoadingSpinner />}
-      {results && (
-        <ResultsContainer>
-          <h3>Research Conclusion:</h3>
-          <div dangerouslySetInnerHTML={{ __html: formatMessage(results) }} />
-          <ShowDetailsButton onClick={() => setShowDetails(!showDetails)}>
-            {showDetails ? 'Hide Details' : 'Show Details'}
-            <FontAwesomeIcon icon={showDetails ? faChevronUp : faChevronDown} style={{ marginLeft: '5px' }} />
-          </ShowDetailsButton>
-          {showDetails && (
-            <ConversationContainer>
-              {conversation.map((message, index) => (
-                <Message key={index} role={message.role}>
-                  <strong>{message.name || message.role}:</strong>
-                  <div dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }} />
-                  {message.tool_calls && (
-                    <div>
-                      <strong>Tool Calls:</strong>
-                      <pre>{JSON.stringify(message.tool_calls, null, 2)}</pre>
-                    </div>
-                  )}
-                  {message.tool_responses && (
-                    <div>
-                      <strong>Tool Responses:</strong>
-                      <pre>{JSON.stringify(message.tool_responses, null, 2)}</pre>
-                    </div>
-                  )}
-                </Message>
-              ))}
-            </ConversationContainer>
-          )}
-        </ResultsContainer>
+      {renderResults()}
+      {pdfPreview && (
+        <PDFPreviewContainer>
+          <PDFPreview>
+            <CloseButton onClick={() => setPDFPreview(null)}>Close</CloseButton>
+            <PDFEmbed src={pdfPreview} type="application/pdf" />
+          </PDFPreview>
+        </PDFPreviewContainer>
       )}
     </ResearchContainer>
   );
