@@ -62,9 +62,10 @@ def create_ingestion_job(container_name):
     if response.status_code == 200:
         print(f"Ingestion job created successfully: {response.json()}")
         job_status_url = f"{endpoint}/openai/ingestion/jobs/{job_id}/runs?api-version={api_version}"
-        check_job_status(job_status_url, headers)
+        return check_job_status(job_status_url, headers)
     else:
         print(f"Failed to create ingestion job: {response.status_code}, {response.text}")
+        raise Exception(f"Failed to create ingestion job: {response.text}")
 
 def check_job_status(url, headers):
     start_time = time.time()
@@ -75,18 +76,18 @@ def check_job_status(url, headers):
             job_status = response.json()
             print(f"Job status: {job_status}")
             if response.text.find("succeeded") != -1:
-                print("Ingestion job completed successfully.")
-                break
+                print("Indexing job completed successfully.")
+                return "completed"
             if response.text.find("failed") != -1:
-                print(f"Ingestion job failed: {response.text}")
-                break
+                print(f"Indexing job failed: {response.text}")
+                return "failed"
             else:
                 print("Job is still in progress. Checking again in 5 seconds...")
                 time.sleep(5)
                 
-                if time.time() - start_time > 240:
-                    print("Ingestion job status check timed out.")
-                    break
+                if time.time() - start_time > 240:  # 4 minutes timeout
+                    print("Indexing job status check timed out.")
+                    return "timeout"
         else:
             print(f"Failed to get job status: {response.status_code}, {response.text}")
-            break
+            return "error"

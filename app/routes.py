@@ -132,8 +132,8 @@ def configure_routes(app):
         ingestion_container = f"{prefix}{index_name}-ingestion"
 
         try:
-            create_ingestion_job(ingestion_container)
-            return jsonify({"message": "Indexing job created successfully"}), 200
+            status = create_ingestion_job(ingestion_container)
+            return jsonify({"message": f"Indexing job {status}"}), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
@@ -172,70 +172,5 @@ def configure_routes(app):
         except Exception as e:
             app.logger.error(f"Error retrieving PDF: {str(e)}")
             return jsonify({"error": f"Error retrieving PDF: {str(e)}"}), 500
-
-    return app
-
-    def handle_file_upload(request, app, folder):
-        if 'file' not in request.files:
-            return jsonify({"error": "No file part"}), 400
-
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({"error": "No selected file"}), 400
-
-        if "___" in file.filename:
-            return jsonify({"error": "File name cannot contain '___'"}), 400
-
-        if file:
-            filename = secure_filename(file.filename)
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(file_path)
-
-            user_id = get_user_id(request)
-            containers = create_user_containers(user_id)
-
-            if folder == "folder1":
-                ingestion_container = containers[2]
-                reference_container = containers[3]
-            elif folder == "folder2":
-                ingestion_container = containers[4]
-                reference_container = containers[5]
-            else:
-                ingestion_container = containers[0]
-                reference_container = containers[1]
-
-            num_pages = split_pdf_to_pages(file_path, app.config['PROCESSED_FOLDER'], filename)
-            reference_file_paths = []
-            ingestion_file_paths = []
-
-            for i in range(num_pages):
-                page_pdf_path = os.path.join(app.config['PROCESSED_FOLDER'], f"{filename}___Page{i+1}.pdf")
-                reference_file_paths.append(page_pdf_path)
-                png_path = convert_pdf_page_to_png(page_pdf_path, i, app.config['PROCESSED_FOLDER'], filename)
-                reference_file_paths.append(png_path)
-                md_path = convert_pdf_page_to_md(page_pdf_path, i, app.config['PROCESSED_FOLDER'], filename)
-                ingestion_file_paths.append(md_path)
-
-            upload_files_to_blob(ingestion_container, ingestion_file_paths)
-            upload_files_to_blob(reference_container, reference_file_paths)
-
-            return jsonify({"message": "File uploaded and processed successfully", "container_name": ingestion_container}), 200
-
-    def handle_index_files(request, folder):
-        user_id = get_user_id(request)
-        containers = create_user_containers(user_id)
-
-        if folder == "folder1":
-            ingestion_container = containers[2]
-        elif folder == "folder2":
-            ingestion_container = containers[4]
-        else:
-            ingestion_container = containers[0]
-
-        try:
-            create_ingestion_job(ingestion_container)
-            return jsonify({"message": "Indexing job created successfully"}), 200
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
 
     return app
