@@ -50,8 +50,3 @@ The application should now be running and accessible at `http://localhost:5000`.
 Ensure all environment variables in the `.env` file are properly set before running the container. These variables are crucial for connecting to various Azure services and configuring the application.
 
 For more detailed information about each variable and its purpose, please refer to the application documentation.
-
-## Permissions required for local user
-For interaction with Storage and Document Intelligence, Managed Identity is used. Therefore make sure that the local user has the following permissions:
-+ Give Blob Data Contributor Role
-+ Give Cognitive Services User role
