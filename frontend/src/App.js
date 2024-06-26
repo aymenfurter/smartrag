@@ -59,7 +59,6 @@ function App() {
   const [hasLoadedBefore, setHasLoadedBefore] = useState(false);
 
   useEffect(() => {
-    
     fetchIndexes();
   }, []);
 

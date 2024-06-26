@@ -1,6 +1,5 @@
 import os
 import base64
-import time
 from flask import request, jsonify, Response, send_file
 from werkzeug.utils import secure_filename
 from io import BytesIO
@@ -8,12 +7,12 @@ from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
 from .utils import split_pdf_to_pages, get_user_id
 from .pdf_processing import convert_pdf_page_to_png
-from .blob_service import upload_files_to_blob, create_index_containers, list_files_in_container, delete_file_from_blob, list_indexes, delete_index, initialize_blob_service
+from .blob_service import upload_files_to_blob, create_index_containers, list_files_in_container, delete_file_from_blob, list_indexes, delete_index, initialize_blob_service, get_blob_url
 from .utils import split_pdf_to_pages, get_user_id
 from .doc_intelligence import convert_pdf_page_to_md
 from .ingestion_job import create_ingestion_job, delete_ingestion_index 
 from .research import research_with_data
-from .chat_service import chat_with_data
+from .chat_service import chat_with_data, refine_message
 
 def configure_routes(app):
     @app.route('/indexes', methods=['GET'])
@@ -146,6 +145,12 @@ def configure_routes(app):
         user_id = get_user_id(request)
         data = request.json
         return chat_with_data(data, user_id)
+
+    @app.route('/refine', methods=['POST'])
+    def refine():
+        user_id = get_user_id(request)
+        data = request.json
+        return refine_message(data, user_id)
 
     @app.route('/pdf/<index_name>/<path:filename>', methods=['GET'])
     def get_pdf(index_name, filename):

@@ -53,18 +53,13 @@ def create_ingestion_job(container_name):
         },
         "completionAction": 1 
     }
-    print(f"Creating ingestion job: {url}")
-    print(f"Payload: {payload}")
-    print(f"Headers: {headers}")
     
     response = requests.put(url, headers=headers, json=payload)
     
     if response.status_code == 200:
-        print(f"Ingestion job created successfully: {response.json()}")
         job_status_url = f"{endpoint}/openai/ingestion/jobs/{job_id}/runs?api-version={api_version}"
         return check_job_status(job_status_url, headers)
     else:
-        print(f"Failed to create ingestion job: {response.status_code}, {response.text}")
         raise Exception(f"Failed to create ingestion job: {response.text}")
 
 def check_job_status(url, headers):
@@ -74,22 +69,16 @@ def check_job_status(url, headers):
         
         if response.status_code == 200:
             job_status = response.json()
-            print(f"Job status: {job_status}")
             if response.text.find("succeeded") != -1:
-                print("Indexing job completed successfully.")
                 return "completed"
             if response.text.find("failed") != -1:
-                print(f"Indexing job failed: {response.text}")
                 return "failed"
             else:
-                print("Job is still in progress. Checking again in 5 seconds...")
                 time.sleep(5)
                 
-                if time.time() - start_time > 240:  # 4 minutes timeout
-                    print("Indexing job status check timed out.")
+                if time.time() - start_time > 240: 
                     return "timeout"
         else:
-            print(f"Failed to get job status: {response.status_code}, {response.text}")
             return "error"
 
 def delete_ingestion_index(job_id):
@@ -105,4 +94,3 @@ def delete_ingestion_index(job_id):
     }
     
     requests.delete(url, headers=headers)
-    print(f"Ingestion job deleted successfully.")

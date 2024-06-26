@@ -8,10 +8,8 @@ def initialize_blob_service():
     credential = DefaultAzureCredential()
     account_name = os.getenv('STORAGE_ACCOUNT_NAME')
     storage_key = os.getenv('STORAGE_ACCOUNT_KEY')
-
     if storage_key:
         credential = storage_key
-
     return BlobServiceClient(account_url=f"https://{account_name}.blob.core.windows.net", credential=credential)
 
 def sanitize_container_name(name):

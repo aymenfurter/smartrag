@@ -9,3 +9,4 @@ uuid
 azure-ai-documentintelligence
 flask-cors
 pyautogen
+pytest

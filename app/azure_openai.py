@@ -31,6 +31,12 @@ def create_data_source(endpoint, key, index_name):
         }
     }
 
+def get_response(url, headers, payload):
+    response = requests.post(url, headers=headers, json=payload)
+    if response.status_code != 200:
+        return {"error": f"Failed to retrieve response: {response.status_code}, {response.text}"}
+    return response.json()
+
 def stream_response(url, headers, payload):
     def stream():
         response = requests.post(url, headers=headers, json=payload, stream=True)
