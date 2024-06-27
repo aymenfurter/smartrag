@@ -27,10 +27,7 @@ const MainContent = styled.div`
 
 const Sidebar = styled.div`
   width: 200px;
-  background-color: #f0f0f0;
   overflow-y: auto;
-  padding: 10px;
-  border-right: 1px solid #ddd;
 `;
 
 const ContentArea = styled.div`

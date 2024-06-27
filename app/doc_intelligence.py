@@ -88,5 +88,4 @@ def convert_pdf_page_to_md(pdf_path, page_num, output_dir, prefix, refine_images
         md_file.write(markdown_content)
     
     print(f"Generated MD: {output_filename}")
-    print(f"Content: {markdown_content}")
     return output_filename

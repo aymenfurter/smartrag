@@ -25,7 +25,6 @@ const ChatContainer = styled.div`
   background-color: #f5f5f5;
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   animation: ${fadeIn} 0.5s ease-out;
 `;
 
@@ -33,6 +32,7 @@ const MessagesContainer = styled.div`
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
 

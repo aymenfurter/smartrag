@@ -86,18 +86,65 @@ const FormContainer = styled.form`
   margin-bottom: 20px;
 `;
 
-const FileInput = styled.input`
+const FileInputLabel = styled.label`
+  display: inline-block;
+  padding: 12px 20px;
+  background-color: #f0f0f0;
+  color: #333;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
   margin-bottom: 15px;
+
+  &:hover {
+    background-color: #e0e0e0;
+    border-color: #999;
+  }
 `;
 
-const CheckboxContainer = styled.div`
+const HiddenFileInput = styled.input`
+  display: none;
+`;
+
+const CheckboxContainer = styled.label`
   display: flex;
   align-items: center;
   margin-bottom: 15px;
+  cursor: pointer;
 `;
 
-const Checkbox = styled.input`
+const HiddenCheckbox = styled.input.attrs({ type: 'checkbox' })`
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+`;
+
+const StyledCheckbox = styled.div`
+  width: 20px;
+  height: 20px;
+  background-color: ${props => props.checked ? '#0078D7' : 'white'};
+  border: 2px solid #0078D7;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-right: 10px;
+
+  ${HiddenCheckbox}:focus + & {
+    box-shadow: 0 0 0 3px rgba(0, 120, 215, 0.3);
+  }
+
+  &::after {
+    content: '✓';
+    color: white;
+    display: ${props => props.checked ? 'block' : 'none'};
+  }
+`;
+
+const CheckboxLabel = styled.span`
+  font-size: 14px;
 `;
 
 const StatusMessage = styled.p`
@@ -117,6 +164,7 @@ function UploadSection({ indexName, isRestricted, onFilesChange }) {
   const [status, setStatus] = useState('');
   const [isIndexing, setIsIndexing] = useState(false);
   const [isMultimodal, setIsMultimodal] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState('');
 
   useEffect(() => {
     if (indexName) {
@@ -190,21 +238,29 @@ function UploadSection({ indexName, isRestricted, onFilesChange }) {
     }
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    setSelectedFileName(file ? file.name : '');
+  };
+
   return (
     <UploadContainer>
       <h3>Upload Files to {indexName}</h3>
       <FormContainer onSubmit={handleUpload}>
-        <FileInput type="file" name="file" />
+        <FileInputLabel>
+          {selectedFileName || 'Choose a file'}
+          <HiddenFileInput type="file" name="file" onChange={handleFileChange} />
+        </FileInputLabel>
         <CheckboxContainer>
-          <Checkbox
-            type="checkbox"
+          <HiddenCheckbox
             id="multimodal"
             checked={isMultimodal}
             onChange={(e) => setIsMultimodal(e.target.checked)}
           />
-          <label htmlFor="multimodal">
+          <StyledCheckbox checked={isMultimodal} />
+          <CheckboxLabel htmlFor="multimodal">
             Enable multimodal refinement (increases upload duration)
-          </label>
+          </CheckboxLabel>
         </CheckboxContainer>
         <ButtonContainer>
           <Button type="submit">Upload</Button>

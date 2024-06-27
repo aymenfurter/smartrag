@@ -13,7 +13,6 @@ const slideIn = keyframes`
 
 const HeaderContainer = styled.header`
   background-color: #ffffff;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 15px 0;
   animation: ${fadeIn} 0.5s ease-out;
 `;

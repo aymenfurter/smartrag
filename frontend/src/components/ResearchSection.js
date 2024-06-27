@@ -1,58 +1,71 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faMinus, faCog, faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faMinus, faCog, faChevronDown, faChevronUp, faSearch } from '@fortawesome/free-solid-svg-icons';
 import { formatMessage } from './ChatSection';
 
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
+
+const slideIn = keyframes`
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+`;
+
 const ResearchContainer = styled.div`
-  padding: 2rem;
-  background-color: #ffffff;
+  padding: 20px;
+  background-color: #f5f5f5;
   border-radius: 10px;
+  margin-bottom: 20px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
+  animation: ${fadeIn} 0.5s ease-out;
 `;
 
 const Title = styled.h2`
   color: #333;
-  font-size: 2rem;
-  margin-bottom: 1rem;
+  font-size: 24px;
+  margin-bottom: 10px;
 `;
 
 const Subtitle = styled.p`
   color: #666;
-  margin-bottom: 2rem;
+  margin-bottom: 20px;
 `;
 
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 15px;
 `;
 
 const Input = styled.input`
-  padding: 0.75rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  font-size: 16px;
+  transition: all 0.3s ease;
 
   &:focus {
     outline: none;
     border-color: #0078D7;
+    box-shadow: 0 0 0 2px rgba(0, 120, 215, 0.2);
   }
 `;
 
 const Select = styled.select`
-  padding: 0.75rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  font-size: 16px;
   background-color: white;
-  transition: border-color 0.3s ease;
+  transition: all 0.3s ease;
 
   &:focus {
     outline: none;
     border-color: #0078D7;
+    box-shadow: 0 0 0 2px rgba(0, 120, 215, 0.2);
   }
 `;
 
@@ -60,34 +73,43 @@ const Button = styled.button`
   background-color: #0078D7;
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
+  padding: 12px 20px;
+  border-radius: 20px;
   cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.3s ease;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s ease;
 
   &:hover {
     background-color: #005a9e;
+    transform: translateY(-2px);
   }
 
   &:disabled {
-    background-color: #cccccc;
+    background-color: #ccc;
     cursor: not-allowed;
+    transform: none;
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `;
 
 const DataSourceContainer = styled.div`
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1rem;
+  background-color: white;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  animation: ${slideIn} 0.3s ease-out;
 `;
 
 const DataSourceHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 10px;
 `;
 
 const DataSourceContent = styled.div`
@@ -98,16 +120,21 @@ const IconButton = styled.button`
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 16px;
   color: #0078D7;
+  transition: color 0.3s ease;
+
+  &:hover {
+    color: #005a9e;
+  }
 `;
 
 const ResultsContainer = styled.div`
-  margin-top: 2rem;
-  padding: 1.5rem;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  margin-top: 20px;
+  padding: 20px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
 
 const LoadingSpinner = styled.div`
@@ -117,7 +144,7 @@ const LoadingSpinner = styled.div`
   width: 30px;
   height: 30px;
   animation: spin 1s linear infinite;
-  margin: 2rem auto;
+  margin: 20px auto;
 
   @keyframes spin {
     0% { transform: rotate(0deg); }
@@ -126,37 +153,38 @@ const LoadingSpinner = styled.div`
 `;
 
 const SliderContainer = styled.div`
-  margin-bottom: 1rem;
+  margin-bottom: 15px;
 `;
 
 const Slider = styled.input`
   width: 100%;
-  margin-top: 0.5rem;
+  margin-top: 10px;
 `;
 
 const SliderLabel = styled.label`
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 5px;
+  font-weight: bold;
 `;
 
 const ConversationContainer = styled.div`
-  margin-top: 1rem;
-  padding: 1rem;
-  background-color: #f0f0f0;
-  border-radius: 8px;
+  margin-top: 15px;
   max-height: 300px;
   overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 10px;
 `;
 
 const Message = styled.div`
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
-  border-radius: 4px;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 10px;
   background-color: ${props => props.role === 'assistant' ? '#e1f5fe' : '#fff8e1'};
 `;
 
 const ShowDetailsButton = styled(Button)`
-  margin-top: 1rem;
+  margin-top: 15px;
 `;
 
 const PDFPreviewContainer = styled.div`
@@ -170,16 +198,19 @@ const PDFPreviewContainer = styled.div`
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  animation: ${fadeIn} 0.3s ease-out;
 `;
 
 const PDFPreview = styled.div`
   background-color: white;
   padding: 20px;
-  border-radius: 8px;
+  border-radius: 10px;
   width: 80%;
   height: 80%;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  animation: ${slideIn} 0.3s ease-out;
 `;
 
 const PDFEmbed = styled.embed`
@@ -188,17 +219,10 @@ const PDFEmbed = styled.embed`
   border: none;
 `;
 
-const CloseButton = styled.button`
+const CloseButton = styled(Button)`
   align-self: flex-end;
-  background-color: #0078D7;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
   margin-bottom: 10px;
 `;
-
 
 
 function ResearchSection({ indexes, initialQuestion = '', initialIndex = null }) {
