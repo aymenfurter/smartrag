@@ -352,6 +352,7 @@ function ChatSection({ indexName, isRestricted, onStartResearch }) {
   };
 
   const handleRefine = async (message) => {
+    if (!message.citations || message.citations.length === 0) return;
     setIsProcessing(true);
     try {
       const response = await fetch('/refine', {

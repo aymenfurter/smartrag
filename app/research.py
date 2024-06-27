@@ -14,13 +14,21 @@ def create_agent(name, system_message, llm_config):
         system_message=system_message,
     )
 
+def create_reviewer_agent(llm_config, single_data_source=False):
+    if single_data_source:
+        system_message = """
+I am Reviewer. I review the research and drive conclusions. Once I am done, I will ask you to terminate the conversation.
 
-def create_reviewer_agent(llm_config):
-    return autogen.AssistantAgent(
-        name="Reviewer",
-        llm_config=llm_config,
-        is_termination_msg=lambda msg: "TERMINATE" in msg["content"].upper(),
-        system_message="""
+My job is to ask questions and guide the research to find the information I need and combine it into a final conclusion.
+
+I will make sure to ask follow-up questions to get the full picture.
+
+Only once I have all the information I need, I will ask you to terminate the conversation. 
+
+To terminate the conversation, I will write ONLY the string: TERMINATE
+"""
+    else:
+        system_message = """
 I am Reviewer. I review the research of the group and drive conclusions. Once I am done, I will ask you to terminate the conversation.
 
 I am working with a team of researchers. Each researcher is an expert on a specific data source. They will be able to give me only part of the information I need.
@@ -32,7 +40,13 @@ I will make sure to take information from each researcher and ask follow-up ques
 Only once I have all the information I need, I will ask you to terminate the conversation. 
 
 To terminate the conversation, I will write ONLY the string: TERMINATE
-""",    
+"""
+
+    return autogen.AssistantAgent(
+        name="Reviewer",
+        llm_config=llm_config,
+        is_termination_msg=lambda msg: "TERMINATE" in msg["content"].upper(),
+        system_message=system_message,
     )
 
 def create_user_proxy():
@@ -84,7 +98,7 @@ def generate_final_conclusion(chat_result):
 
     Key Insights
     Final Conclusion
-    Relevant Citations and Sources
+    Relevant Citations and Sources (Please always reference URLs to the sources used in the research!)
 
     Do not report on the process that was used, just conclude. Do not come up with new information, just summarize the chat history.
     """
@@ -124,9 +138,9 @@ def research_with_data(data, user_id):
     researchers = []
 
     for source in data_sources:
-        print (source)
-        print ("Adding source")
-        print (source['name'])
+        print(source)
+        print("Adding source")
+        print(source['name'])
         is_restricted = source.get("isRestricted", True)
         prefix = f"{user_id}-" if is_restricted else "open-"
         search_index = sanitize_container_name(f"{prefix}{source['index']}-ingestion")
@@ -167,11 +181,10 @@ def research_with_data(data, user_id):
             name=f"lookup_{index_name}"
         )(lookup_function)
 
-    reviewer = create_reviewer_agent(llm_config)
+    reviewer = create_reviewer_agent(llm_config, single_data_source=(len(data_sources) == 1))
 
     print("Researchers: ", researchers)
 
-    
     groupchat = autogen.GroupChat(
         agents=[user_proxy, reviewer] + researchers,
         messages=[],

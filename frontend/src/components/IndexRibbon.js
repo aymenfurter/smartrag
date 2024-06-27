@@ -156,8 +156,8 @@ function IndexRibbon({ indexes, selectedIndex, onSelectIndex, onIndexesChange, o
           type="text"
           value={newIndexName}
           onChange={(e) => setNewIndexName(e.target.value.toLowerCase())}
-          placeholder="New index name (max 10 chars)"
-          maxLength="10"
+          placeholder="New index name (max 8 chars)"
+          maxLength="8"
         />
         <CheckboxContainer>
           <StyledCheckbox

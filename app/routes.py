@@ -51,6 +51,8 @@ def configure_routes(app):
     def upload_file(index_name):
         user_id = get_user_id(request)
         is_restricted = request.args.get('is_restricted', 'true').lower() == 'true'
+        is_multimodal = request.form.get('multimodal', 'false').lower() == 'true'
+
         
         if 'file' not in request.files:
             return jsonify({"error": "No file part"}), 400
@@ -80,7 +82,7 @@ def configure_routes(app):
                 reference_file_paths.append(page_pdf_path)
                 png_path = convert_pdf_page_to_png(page_pdf_path, i, app.config['PROCESSED_FOLDER'], filename)
                 reference_file_paths.append(png_path)
-                md_path = convert_pdf_page_to_md(page_pdf_path, i, app.config['PROCESSED_FOLDER'], filename)
+                md_path = convert_pdf_page_to_md(page_pdf_path, i, app.config['PROCESSED_FOLDER'], filename, is_multimodal)
                 ingestion_file_paths.append(md_path)
 
             upload_files_to_blob(ingestion_container, ingestion_file_paths)
