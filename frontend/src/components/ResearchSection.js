@@ -401,8 +401,6 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
 
   return (
     <ResearchContainer>
-      <Title>Research Hub</Title>
-      <Subtitle>Explore topics with AI-powered research assistants</Subtitle>
       <Form onSubmit={handleSubmit}>
         <Input
           type="text"

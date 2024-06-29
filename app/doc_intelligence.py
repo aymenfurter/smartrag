@@ -9,6 +9,7 @@ from azure.ai.documentintelligence.models import ContentFormat
 from azure.core.credentials import AzureKeyCredential
 from PIL import Image
 from .azure_openai import get_azure_openai_client, analyze_image
+from .table_postprocessor import enhance_markdown
 
 def refine_figures(content, png_path: str) -> str:
     """Refine figures in the content by adding captions."""
@@ -48,7 +49,10 @@ def refine_figures(content, png_path: str) -> str:
     
     with Image.open(png_path) as img:
         img_width, img_height = img.size
-    
+
+    if not content.figures:
+        return updated_content
+
     for i, figure in enumerate(content.figures):
         polygon = figure.bounding_regions[0].polygon
         caption = process_image(polygon, pdf_width, pdf_height, img_width, img_height)
@@ -60,7 +64,7 @@ def refine_figures(content, png_path: str) -> str:
     
     return updated_content
 
-def convert_pdf_page_to_md(pdf_path: str, page_num: int, output_dir: str, prefix: str, refine_images: bool = False) -> str:
+def convert_pdf_page_to_md(pdf_path: str, page_num: int, output_dir: str, prefix: str, refine_markdown: bool = False) -> str:
     """Convert a PDF page to Markdown format."""
     endpoint = os.getenv("DOCUMENTINTELLIGENCE_ENDPOINT")
     document_intelligence_key = os.getenv("DOCUMENTINTELLIGENCE_KEY")
@@ -83,9 +87,11 @@ def convert_pdf_page_to_md(pdf_path: str, page_num: int, output_dir: str, prefix
     result = poller.result()
     markdown_content = result.content
     
-    if refine_images:
+    if refine_markdown:
         png_path = os.path.join(output_dir, f"{prefix}___Page{page_num+1}.png")
         markdown_content = refine_figures(result, png_path)
+        markdown_content = enhance_markdown(markdown_content)
+    
     
     output_filename = os.path.join(output_dir, f"{prefix}___Page{page_num+1}.md")
     with open(output_filename, "w", encoding='utf-8') as md_file:

@@ -120,7 +120,7 @@ function Header({ activeSection, setActiveSection, toggleTheme, isDarkMode }) {
   const navItems = [
     { icon: faComments, text: 'Chat', section: 'chat' },
     { icon: faUpload, text: 'Upload', section: 'upload' },
-    { icon: faMagnifyingGlass, text: 'Research', section: 'research' },
+    { icon: faMagnifyingGlass, text: 'Multi-Agent Research', section: 'research' },
     { icon: faTrash, text: 'Clear', action: () => localStorage.removeItem('chatHistory') },
   ];
 

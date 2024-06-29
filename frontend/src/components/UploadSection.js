@@ -255,7 +255,6 @@ function UploadSection({ indexName, isRestricted, onFilesChange }) {
 
   return (
     <UploadContainer>
-      <Title>Upload Files to {indexName}</Title>
       <FormContainer onSubmit={handleUpload}>
         <FileInputLabel>
           {selectedFileName || 'Choose a file'}
@@ -269,7 +268,7 @@ function UploadSection({ indexName, isRestricted, onFilesChange }) {
           />
           <StyledCheckbox checked={isMultimodal} />
           <CheckboxLabel htmlFor="multimodal">
-            Enable multimodal refinement (increases upload duration)
+            Enable multimodal refinement & table postprocessing 
           </CheckboxLabel>
         </CheckboxContainer>
         <ButtonContainer>
