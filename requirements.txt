@@ -10,3 +10,4 @@ azure-ai-documentintelligence
 flask-cors
 pyautogen
 pytest
+opentelemetry-instrumentation-flask

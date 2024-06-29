@@ -52,22 +52,6 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   tags: tags
 }
 
-
-// module containerApps './core/host/container-apps.bicep' = {
-//   name: 'container-apps'
-//   scope: rg
-//   params: {
-//     name: 'app'
-//     location: location
-//     tags: tags
-//     containerAppsEnvironmentName: !empty(containerAppsEnvironmentName) ? containerAppsEnvironmentName : '${abbrs.appManagedEnvironments}${resourceToken}'
-//     containerRegistryName: !empty(containerRegistryName) ? containerRegistryName : '${abbrs.containerRegistryRegistries}${resourceToken}'
-//     containerRegistryAdminUserEnabled: true
-//     logAnalyticsWorkspaceName: monitoring.outputs.logAnalyticsWorkspaceName
-//     applicationInsightsName: monitoring.outputs.applicationInsightsName
-//   }
-// }
-
 // Azure OpenAI Resource
 module openai 'core/ai/cognitiveservices.bicep' = {
   name: azureOpenAIResourceName
@@ -125,7 +109,7 @@ module search './core/search/search-services.bicep' = {
         aadAuthFailureMode: 'http403'
       }
     }
-    semanticSearch: azureSearchUseSemanticSearch ? 'free' : null
+    semanticSearch: azureSearchUseSemanticSearch ? 'free' : 'disabled'
   }
 }
 
@@ -139,14 +123,10 @@ module storage 'core/storage/storage-account.bicep' = {
     sku: {
       name: 'Standard_GRS'
     }
-    containers: [
-    ]
-
-    queues: [
-    ]
+    containers: []
+    queues: []
   }
 }
-
 
 module formrecognizer 'core/ai/cognitiveservices.bicep' = {
   name: docIntelligenceName 
@@ -158,6 +138,112 @@ module formrecognizer 'core/ai/cognitiveservices.bicep' = {
     kind: 'FormRecognizer'
   }
 }
+
+// Monitor application with Azure Monitor
+module monitoring 'core/monitor/monitoring.bicep' = {
+  name: 'monitoring'
+  scope: rg
+  params: {
+    location: location
+    tags: tags
+    logAnalyticsName: '${environmentName}-loganalytics'
+    applicationInsightsName: '${environmentName}-appinsights'
+    applicationInsightsDashboardName: '${environmentName}-appinsights-dashboard'
+  }
+}
+
+// Container apps host
+module containerApps 'core/host/container-apps.bicep' = {
+  name: 'container-apps'
+  scope: rg
+  params: {
+    name: 'app'
+    location: location
+    containerAppsEnvironmentName: '${environmentName}-containerapps-env'
+    logAnalyticsWorkspaceName: monitoring.outputs.logAnalyticsWorkspaceName
+  }
+}
+
+// Container App
+module app 'core/host/container-app.bicep' = {
+  name: 'app'
+  scope: rg
+  params: {
+    name: '${environmentName}-app'
+    location: location
+    identityType: 'SystemAssigned'
+    imageName: 'ghcr.io/aymenfurter/smartrag/smartrag:bfdce47ef2796a020a2d5f0c720a3b83f0be7ea2'
+    tags: { 'azd-service-name': 'app' }
+    containerAppsEnvironmentName: containerApps.outputs.environmentName
+    env: [
+      {
+        name: 'AZURE_STORAGE_ACCOUNT'
+        value: storage.outputs.name
+      }
+      {
+        name: 'DOCUMENTINTELLIGENCE_ENDPOINT'
+        value: formrecognizer.outputs.endpoint
+      }
+      {
+        name: 'RESOURCE_GROUP'
+        value: rg.name
+      }
+      {
+        name: 'SUBSCRIPTION_ID'
+        value: subscription().subscriptionId
+      }
+      {
+        name: 'SEARCH_SERVICE_ENDPOINT'
+        value: search.outputs.endpoint
+      }
+      {
+        name: 'OPENAI_ENDPOINT'
+        value: openai.outputs.endpoint
+      }
+      {
+        name: 'ADA_DEPLOYMENT_NAME'
+        value: azureOpenAIEmbeddingModel
+      }
+      {
+        name: 'AZURE_OPENAI_DEPLOYMENT_ID'
+        value: azureOpenAIGPTModel
+      }
+      {
+        name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+        value: monitoring.outputs.applicationInsightsConnectionString
+      }
+      {
+        name: 'DOCUMENTINTELLIGENCE_API_KEY'
+        secretRef: 'azure-formrecognizer-key'
+      }
+      {
+        name: 'SEARCH_SERVICE_API_KEY'
+        secretRef: 'azure-search-key'
+      }
+      {
+        name: 'AOAI_API_KEY'
+        secretRef: 'azure-openai-key' 
+      }
+      {
+        name: 'STORAGE_ACCOUNT_KEY'
+        secretRef: 'azure-storage-key'
+      }
+    ]
+    formrecognizerName: formrecognizer.outputs.name
+    searchName: search.outputs.name
+    openaiName: openai.outputs.name
+    storageAccountName: storage.outputs.name
+  }
+  dependsOn: [
+    openai
+    search
+    storage
+    formrecognizer
+    containerApps
+    monitoring
+  ]
+}
+
 
 // Role Assignments
 module searchServiceRoleOpenai 'core/security/role.bicep' = {
@@ -219,3 +305,13 @@ module storageBlobDataContributorRoleSearch 'core/security/role.bicep' = {
     principalType: 'ServicePrincipal'
   }
 }
+
+output AZURE_LOCATION string = location
+output AZURE_CONTAINER_ENVIRONMENT_NAME string = containerApps.outputs.environmentName
+output SERVICE_APP_NAME string = app.outputs.name
+output SERVICE_APP_URI string = app.outputs.uri
+output AZURE_OPENAI_RESOURCE_ID string = openai.outputs.id
+output AZURE_SEARCH_RESOURCE_ID string = search.outputs.id
+output AZURE_STORAGE_RESOURCE_ID string = storage.outputs.id
+output AZURE_FORMRECOGNIZER_RESOURCE_ID string = formrecognizer.outputs.id
+

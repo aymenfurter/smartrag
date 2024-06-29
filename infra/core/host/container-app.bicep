@@ -1,4 +1,5 @@
 metadata description = 'Creates a container app in an Azure Container App environment.'
+
 param name string
 param location string = resourceGroup().location
 param tags object = {}
@@ -62,10 +63,6 @@ param ingressEnabled bool = true
 
 param revisionMode string = 'Single'
 
-@description('The secrets required for the container')
-@secure()
-param secrets object = {}
-
 @description('The service binds associated with the container')
 param serviceBinds array = []
 
@@ -73,17 +70,61 @@ param serviceBinds array = []
 param serviceType string = ''
 
 @description('The target port for the container')
-param targetPort int = 80
+param targetPort int = 5000
+
+@description('The name of the Form Recognizer resource')
+param formrecognizerName string
+
+@description('The name of the Azure Search resource')
+param searchName string
+
+@description('The name of the Azure OpenAI resource')
+param openaiName string
+
+@description('The name of the Storage Account')
+param storageAccountName string
 
 resource userIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = if (!empty(identityName)) {
   name: identityName
 }
 
-// Private registry support requires both an ACR name and a User Assigned managed identity
-var usePrivateRegistry = !empty(identityName) && !empty(containerRegistryName)
+resource formrecognizer 'Microsoft.CognitiveServices/accounts@2021-10-01' existing = {
+  name: formrecognizerName
+}
 
-// Automatically set to `UserAssigned` when an `identityName` has been set
+resource search 'Microsoft.Search/searchServices@2021-04-01-preview' existing = {
+  name: searchName
+}
+
+resource openai 'Microsoft.CognitiveServices/accounts@2021-10-01' existing = {
+  name: openaiName
+}
+
+resource storageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' existing = {
+  name: storageAccountName
+}
+
+var usePrivateRegistry = !empty(identityName) && !empty(containerRegistryName)
 var normalizedIdentityType = !empty(identityName) ? 'UserAssigned' : identityType
+
+var secureSecrets = [
+  {
+    name: 'azure-formrecognizer-key'
+    value: formrecognizer.listKeys().key1
+  }
+  {
+    name: 'azure-search-key'
+    value: search.listAdminKeys().primaryKey
+  }
+  {
+    name: 'azure-openai-key'
+    value: openai.listKeys().key1
+  }
+  {
+    name: 'azure-storage-key'
+    value: storageAccount.listKeys().keys[0].value
+  }
+]
 
 module containerRegistryAccess '../security/registry-access.bicep' = if (usePrivateRegistry) {
   name: '${deployment().name}-registry-access'
@@ -97,10 +138,6 @@ resource app 'Microsoft.App/containerApps@2023-05-02-preview' = {
   name: name
   location: location
   tags: tags
-  // It is critical that the identity is granted ACR pull access before the app is created
-  // otherwise the container app will throw a provision error
-  // This also forces us to use an user assigned managed identity since there would no way to 
-  // provide the system assigned identity with the ACR pull access before the app is created
   dependsOn: usePrivateRegistry ? [ containerRegistryAccess ] : []
   identity: {
     type: normalizedIdentityType
@@ -124,10 +161,7 @@ resource app 'Microsoft.App/containerApps@2023-05-02-preview' = {
         appProtocol: daprAppProtocol
         appPort: ingressEnabled ? targetPort : 0
       } : { enabled: false }
-      secrets: [for secret in items(secrets): {
-        name: secret.key
-        value: secret.value
-      }]
+      secrets: secureSecrets
       service: !empty(serviceType) ? { type: serviceType } : null
       registries: usePrivateRegistry ? [
         {
