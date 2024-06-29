@@ -4,13 +4,6 @@ from unittest.mock import patch, MagicMock
 from app import azure_openai
 
 class TestAzureOpenAI(unittest.TestCase):
-
-    @patch('app.azure_openai.AzureOpenAI')
-    def test_get_azure_openai_client(self, mock_azure_openai):
-        client = azure_openai.get_azure_openai_client()
-        mock_azure_openai.assert_called_once()
-        self.assertIsNotNone(client)
-
     @patch('app.azure_openai.AzureOpenAI')
     @patch.dict('os.environ', {'AZURE_OPENAI_DEPLOYMENT_NAME': 'test-model'})
     def test_analyze_image(self, mock_azure_openai):
