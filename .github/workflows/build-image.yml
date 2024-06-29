@@ -27,7 +27,6 @@ jobs:
       - name: Build and push chat image
         uses: docker/build-push-action@v2
         with:
-          context: ./webapi
           push: true
           tags: ghcr.io/${{ github.repository }}/chat:${{ github.sha }}
           cache-from: type=local,src=/tmp/.buildx-cache
