@@ -16,7 +16,7 @@ const slideIn = keyframes`
 const RibbonContainer = styled.div`
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  padding: 10px;
   background-color: ${props => props.theme.sidebarBackground};
   border-radius: 10px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -202,7 +202,7 @@ function IndexRibbon({ indexes, selectedIndex, onSelectIndex, onIndexesChange, o
             selected={selectedIndex && selectedIndex[0] === index[0] && selectedIndex[1] === index[1]}
             onClick={() => onSelectIndex(index)}
           >
-            <span>{index[0]} ({index[1] ? 'Restricted' : 'Open'})</span>
+            <span>{index[0]} {index[1] ? '(hidden)' : ''}</span>
             <DeleteButton
               selected={selectedIndex && selectedIndex[0] === index[0] && selectedIndex[1] === index[1]}
               onClick={(e) => {
