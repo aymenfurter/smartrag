@@ -138,6 +138,16 @@ const ResultsContainer = styled.div`
   background-color: ${props => props.theme.cardBackground};
   border-radius: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+  a {
+    color: ${props => props.theme.primaryButtonColor};
+    text-decoration: underline;
+    cursor: pointer;
+
+    &:hover {
+      color: ${props => props.theme.primaryButtonHover};
+    }
+  }
 `;
 
 const LoadingSpinner = styled.div`
@@ -184,8 +194,8 @@ const Message = styled.div`
   padding: 10px;
   margin-bottom: 10px;
   border-radius: 10px;
-  background-color: ${props => props.role === 'assistant' ? props.theme.assistantMessageBackground : props.theme.userMessageBackground};
-  color: ${props => props.theme.messageText};
+  background-color: ${props => props.role === 'assistant' ? props.theme.focusBorderColor : props.theme.inputBackground};
+  color: ${props => props.role === 'assistant' ? props.theme.disabledButtonText : props.theme.messageText};
 `;
 
 const ShowDetailsButton = styled(Button)`
@@ -345,7 +355,7 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
     return (
       <ResultsContainer>
         <h3>Research Conclusion:</h3>
-       <div 
+        <div 
           dangerouslySetInnerHTML={{ __html: resultsWithClickableLinks }}
           onClick={(e) => {
             if (e.target.tagName === 'A') {
@@ -431,7 +441,7 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
                 value={source.name}
                 onChange={(e) => handleDataSourceChange(index, 'name', e.target.value)}
                 placeholder="Custom name for this data source"
-              />
+                />
               <Input
                 type="text"
                 value={source.description}
