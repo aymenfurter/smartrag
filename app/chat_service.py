@@ -7,16 +7,9 @@ from .azure_openai import create_payload, create_data_source, stream_response, g
 from .index_manager import create_index_manager, ContainerNameTooLongError
 import requests
 
-def chat_with_data(data: Dict[str, Any], user_id: str) -> Response:
+def chat_with_data(data: Dict[str, Any], user_id: str, config: Dict[str, str] = None) -> Response:
     """
     Process a chat request with the given data and user ID.
-    
-    Args:
-        data: A dictionary containing chat request data.
-        user_id: The ID of the user making the request.
-    
-    Returns:
-        A Flask Response object with the chat result.
     """
     messages = data.get("messages", [])
     context = data.get("context", {})
@@ -37,7 +30,8 @@ def chat_with_data(data: Dict[str, Any], user_id: str) -> Response:
 
     container_name = index_manager.get_ingestion_container()
     
-    config = get_openai_config()
+    if config is None:
+        config = get_openai_config()
     url = f"{config['OPENAI_ENDPOINT']}/openai/deployments/{config['AZURE_OPENAI_DEPLOYMENT_ID']}/chat/completions?api-version=2024-02-15-preview"
     headers = {
         "Content-Type": "application/json",
@@ -49,16 +43,9 @@ def chat_with_data(data: Dict[str, Any], user_id: str) -> Response:
 
     return stream_response(url, headers, payload)
 
-def refine_message(data: Dict[str, Any], user_id: str) -> Response:
+def refine_message(data: Dict[str, Any], user_id: str, config: Dict[str, str] = None) -> Response:
     """
     Refine a message based on the given data and user ID.
-    
-    Args:
-        data: A dictionary containing refinement request data.
-        user_id: The ID of the user making the request.
-    
-    Returns:
-        A Flask Response object with the refined message.
     """
     message = data.get("message")
     citations = data.get("citations", [])
@@ -82,7 +69,8 @@ def refine_message(data: Dict[str, Any], user_id: str) -> Response:
 
     reference_container = index_manager.get_reference_container()
     
-    config = get_openai_config()
+    if config is None:
+        config = get_openai_config()
     url = f"{config['OPENAI_ENDPOINT']}/openai/deployments/{config['AZURE_OPENAI_DEPLOYMENT_ID']}/chat/completions?api-version=2024-02-15-preview"
     headers = {
         "Content-Type": "application/json",
@@ -97,15 +85,6 @@ def refine_message(data: Dict[str, Any], user_id: str) -> Response:
 def create_refine_messages(message: str, citations: List[Dict[str, Any]], reference_container: str, original_question: str) -> List[Dict[str, Any]]:
     """
     Create a list of messages for the refinement process.
-    
-    Args:
-        message: The message to be refined.
-        citations: A list of citation dictionaries.
-        reference_container: The name of the reference container.
-        original_question: The original question being answered.
-    
-    Returns:
-        A list of message dictionaries for the refinement process.
     """
     system_message = (
         "You are an AI assistant tasked with answering specific questions based on "
@@ -132,13 +111,6 @@ def create_refine_messages(message: str, citations: List[Dict[str, Any]], refere
 def process_citation(citation: Dict[str, Any], container_client: Any) -> Dict[str, Any] | None:
     """
     Process a single citation and create a message with the image data.
-    
-    Args:
-        citation: A dictionary containing citation information.
-        container_client: The Azure Blob container client.
-    
-    Returns:
-        A message dictionary with the image data, or None if processing fails.
     """
     filepath = citation.get('filepath', '')
     if not filepath:

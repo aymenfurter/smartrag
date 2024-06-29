@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from typing import Optional
-from .blob_service import sanitize_container_name
+from typing import Optional, List, Tuple
+import re
 
 class ContainerNameTooLongError(Exception):
     """Raised when the container name exceeds the maximum allowed length."""
@@ -14,7 +14,6 @@ class IndexConfig:
 
 class IndexManager:
     """Manages the creation and access of index containers."""
-
     MAX_CONTAINER_NAME_LENGTH = 63
     INGESTION_SUFFIX = "-ingestion"
     REFERENCE_SUFFIX = "-reference"
@@ -32,7 +31,7 @@ class IndexManager:
         """
         prefix = f"{self.config.user_id}-" if self.config.is_restricted else "open-"
         full_name = f"{prefix}{self.config.index_name}"
-        sanitized_name = sanitize_container_name(full_name)
+        sanitized_name = self.sanitize_container_name(full_name)
         
         if len(sanitized_name) > self.MAX_CONTAINER_NAME_LENGTH - len(self.INGESTION_SUFFIX):
             raise ContainerNameTooLongError(
@@ -60,6 +59,48 @@ class IndexManager:
         if not self.config.is_restricted:
             return True
         return self.base_container_name.startswith(f"{self.config.user_id}-")
+
+    @staticmethod
+    def sanitize_container_name(name: str) -> str:
+        """
+        Sanitize the container name to meet Azure requirements.
+        
+        - Convert to lowercase
+        - Replace invalid characters with hyphens
+        - Remove leading and trailing hyphens
+        - Collapse multiple consecutive hyphens into a single hyphen
+        - Truncate to 63 characters
+        """
+        # Convert to lowercase and replace invalid characters with hyphens
+        sanitized = re.sub(r'[^a-z0-9-]', '-', name.lower())
+        
+        # Remove leading and trailing hyphens
+        sanitized = sanitized.strip('-')
+        
+        # Collapse multiple consecutive hyphens into a single hyphen
+        sanitized = re.sub(r'-+', '-', sanitized)
+        
+        # Truncate to 63 characters
+        return sanitized[:63]
+
+    @classmethod
+    def create_index_containers(cls, user_id: str, index_name: str, is_restricted: bool) -> List[str]:
+        """Create container names for the index and return their names."""
+        config = IndexConfig(user_id, index_name, is_restricted)
+        manager = cls(config)
+        return [manager.get_ingestion_container(), manager.get_reference_container()]
+
+    @classmethod
+    def parse_container_name(cls, container_name: str) -> Tuple[str, bool]:
+        """Parse a container name to extract index name and restricted status."""
+        if container_name.endswith(cls.INGESTION_SUFFIX):
+            base_name = container_name[:-len(cls.INGESTION_SUFFIX)]
+            if base_name.startswith("open-"):
+                return base_name[5:], False
+            else:
+                user_id, index_name = base_name.rsplit("-", 1)
+                return index_name, True
+        return "", False
 
 def create_index_manager(user_id: str, index_name: str, is_restricted: bool) -> IndexManager:
     """Factory function to create an IndexManager instance."""
