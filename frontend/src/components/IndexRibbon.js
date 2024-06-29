@@ -17,7 +17,7 @@ const RibbonContainer = styled.div`
   display: flex;
   flex-direction: column;
   padding: 20px;
-  background-color: #f8f9fa;
+  background-color: ${props => props.theme.sidebarBackground};
   border-radius: 10px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   animation: ${fadeIn} 0.5s ease-out;
@@ -32,8 +32,8 @@ const IndexList = styled.div`
 
 const IndexItem = styled.div`
   padding: 12px 15px;
-  background-color: ${props => props.selected ? '#0078D7' : '#ffffff'};
-  color: ${props => props.selected ? 'white' : '#333'};
+  background-color: ${props => props.selected ? props.theme.selectedItemBackground : props.theme.itemBackground};
+  color: ${props => props.selected ? props.theme.selectedItemText : props.theme.itemText};
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -53,13 +53,13 @@ const IndexItem = styled.div`
 const DeleteButton = styled.button`
   background: none;
   border: none;
-  color: ${props => props.selected ? 'white' : '#666'};
+  color: ${props => props.selected ? props.theme.selectedItemText : props.theme.deleteButtonColor};
   cursor: pointer;
   padding: 5px;
   transition: color 0.3s ease;
 
   &:hover {
-    color: #ff4d4d;
+    color: ${props => props.theme.deleteButtonHoverColor};
   }
 `;
 
@@ -71,20 +71,22 @@ const CreateIndexForm = styled.form`
 
 const Input = styled.input`
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid ${props => props.theme.inputBorder};
   border-radius: 5px;
   font-size: 14px;
+  background-color: ${props => props.theme.inputBackground};
+  color: ${props => props.theme.inputText};
   transition: border-color 0.3s ease;
 
   &:focus {
     outline: none;
-    border-color: #0078D7;
+    border-color: ${props => props.theme.focusBorderColor};
   }
 `;
 
 const Button = styled.button`
-  background-color: #0078D7;
-  color: white;
+  background-color: ${props => props.theme.primaryButtonColor};
+  color: ${props => props.theme.primaryButtonText};
   border: none;
   padding: 12px;
   border-radius: 5px;
@@ -97,7 +99,7 @@ const Button = styled.button`
   justify-content: center;
 
   &:hover {
-    background-color: #005a9e;
+    background-color: ${props => props.theme.primaryButtonHover};
     transform: translateY(-2px);
   }
 
@@ -115,34 +117,36 @@ const StyledCheckbox = styled.input`
   appearance: none;
   width: 20px;
   height: 20px;
-  border: 2px solid #0078D7;
+  border: 2px solid ${props => props.theme.checkboxBorder};
   border-radius: 3px;
   margin-right: 10px;
   cursor: pointer;
   position: relative;
   transition: all 0.3s ease;
+  background-color: ${props => props.theme.checkboxBackground};
 
   &:checked {
-    background-color: #0078D7;
+    background-color: ${props => props.theme.checkboxCheckedBackground};
   }
 
   &:checked::after {
     content: '✓';
     position: absolute;
-    color: white;
+    color: ${props => props.theme.checkboxCheckedColor};
     font-size: 16px;
     top: -2px;
     left: 3px;
   }
 
   &:hover {
-    box-shadow: 0 0 5px rgba(0, 120, 215, 0.5);
+    box-shadow: 0 0 5px ${props => props.theme.checkboxHoverShadow};
   }
 `;
 
 const CheckboxLabel = styled.label`
   cursor: pointer;
   user-select: none;
+  color: ${props => props.theme.labelText};
 `;
 
 function IndexRibbon({ indexes, selectedIndex, onSelectIndex, onIndexesChange, onDeleteIndex }) {

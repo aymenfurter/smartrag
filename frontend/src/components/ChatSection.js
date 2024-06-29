@@ -22,7 +22,7 @@ const ChatContainer = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #f5f5f5;
+  background-color: ${props => props.theme.backgroundColor};
   border-radius: 10px;
   overflow: hidden;
   animation: ${fadeIn} 0.5s ease-out;
@@ -41,16 +41,16 @@ const MessagesContainer = styled.div`
   }
 
   &::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: ${props => props.theme.scrollbarTrack};
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #888;
+    background: ${props => props.theme.scrollbarThumb};
     border-radius: 4px;
   }
 
   &::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: ${props => props.theme.scrollbarThumbHover};
   }
 `;
 
@@ -58,8 +58,8 @@ const MessageForm = styled.form`
   display: flex;
   align-items: center;
   padding: 15px;
-  background-color: white;
-  border-top: 1px solid #e0e0e0;
+  background-color: ${props => props.theme.formBackground};
+  border-top: 1px solid ${props => props.theme.borderColor};
 `;
 
 const InputContainer = styled.div`
@@ -70,15 +70,17 @@ const InputContainer = styled.div`
   input {
     flex: 1;
     padding: 12px;
-    border: 1px solid #ccc;
+    border: 1px solid ${props => props.theme.inputBorder};
     border-radius: 20px;
     font-size: 16px;
+    background-color: ${props => props.theme.inputBackground};
+    color: ${props => props.theme.textColor};
     transition: all 0.3s ease;
 
     &:focus {
       outline: none;
-      border-color: #0078D7;
-      box-shadow: 0 0 0 2px rgba(0, 120, 215, 0.2);
+      border-color: ${props => props.theme.focusBorderColor};
+      box-shadow: 0 0 0 2px ${props => props.theme.focusBoxShadow};
     }
   }
 `;
@@ -88,8 +90,8 @@ const ButtonContainer = styled.div`
 `;
 
 const Button = styled.button`
-  background-color: ${props => props.primary ? '#0078D7' : '#f0f0f0'};
-  color: ${props => props.primary ? 'white' : '#333'};
+  background-color: ${props => props.primary ? props.theme.primaryButtonColor : props.theme.secondaryButtonColor};
+  color: ${props => props.primary ? props.theme.primaryButtonText : props.theme.secondaryButtonText};
   border: none;
   padding: 12px 20px;
   border-radius: 20px;
@@ -100,12 +102,12 @@ const Button = styled.button`
   margin-left: 10px;
 
   &:hover {
-    background-color: ${props => props.primary ? '#005a9e' : '#e0e0e0'};
+    background-color: ${props => props.primary ? props.theme.primaryButtonHover : props.theme.secondaryButtonHover};
     transform: translateY(-2px);
   }
 
   &:disabled {
-    background-color: #ccc;
+    background-color: ${props => props.theme.disabledButtonColor};
     cursor: not-allowed;
     transform: none;
   }
@@ -125,16 +127,17 @@ const Message = styled.div`
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
   &.user {
-    background-color: #0078D7;
-    color: white;
+    background-color: ${props => props.theme.userMessageBackground};
+    color: ${props => props.theme.userMessageText};
     align-self: flex-end;
     margin-left: auto;
   }
 
   &.assistant {
-    background-color: white;
+    background-color: ${props => props.theme.assistantMessageBackground};
+    color: ${props => props.theme.assistantMessageText};
     align-self: flex-start;
-    border: 1px solid #e0e0e0;
+    border: 1px solid ${props => props.theme.borderColor};
   }
 
   p {
@@ -147,18 +150,28 @@ const Message = styled.div`
   }
 
   code {
-    background-color: #f0f0f0;
+    background-color: ${props => props.theme.codeBackground};
+    color: ${props => props.theme.codeText};
     padding: 2px 4px;
     border-radius: 3px;
     font-family: 'Courier New', Courier, monospace;
   }
 
   pre {
-    background-color: #f0f0f0;
+    background-color: ${props => props.theme.preBackground};
+    color: ${props => props.theme.preText};
     padding: 10px;
     border-radius: 5px;
     overflow-x: auto;
     font-family: 'Courier New', Courier, monospace;
+  }
+
+  a {
+    color: ${props => props.theme.linkColor};
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
   }
 `;
 
@@ -169,8 +182,17 @@ const AnimatedContent = styled.div`
 const CitationsSection = styled.div`
   margin-top: 10px;
   font-size: 0.9em;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid ${props => props.theme.borderColor};
   padding-top: 10px;
+  color: ${props => props.theme.citationText};
+
+  a {
+    color: ${props => props.theme.linkColor};
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 `;
 
 const PDFPreviewContainer = styled.div`
@@ -179,7 +201,7 @@ const PDFPreviewContainer = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: ${props => props.theme.modalOverlay};
   display: flex;
   justify-content: center;
   align-items: center;
@@ -188,7 +210,7 @@ const PDFPreviewContainer = styled.div`
 `;
 
 const PDFPreview = styled.div`
-  background-color: white;
+  background-color: ${props => props.theme.modalBackground};
   padding: 20px;
   border-radius: 10px;
   width: 80%;
@@ -207,8 +229,8 @@ const PDFEmbed = styled.embed`
 
 const CloseButton = styled.button`
   align-self: flex-end;
-  background-color: #0078D7;
-  color: white;
+  background-color: ${props => props.theme.closeButtonBackground};
+  color: ${props => props.theme.closeButtonText};
   border: none;
   padding: 8px 15px;
   border-radius: 20px;
@@ -219,7 +241,7 @@ const CloseButton = styled.button`
   transition: all 0.3s ease;
 
   &:hover {
-    background-color: #005a9e;
+    background-color: ${props => props.theme.closeButtonHover};
     transform: translateY(-2px);
   }
 `;
@@ -435,7 +457,9 @@ function ChatSection({ indexName, isRestricted, onStartResearch }) {
             <ul>
               {message.citations.map((citation, citationIndex) => (
                 <li key={citationIndex}>
-                  <a href="#" onClick={() => handleCitationClick(citation)}>{citation.title}</a> [doc{citationIndex}]
+                  <a href="#" onClick={(e) => { e.preventDefault(); handleCitationClick(citation); }}>
+                    {citation.title}
+                  </a> [doc{citationIndex}]
                 </li>
               ))}
             </ul>

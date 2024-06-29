@@ -13,7 +13,7 @@ const slideIn = keyframes`
 
 const UploadContainer = styled.div`
   padding: 20px;
-  background-color: #f5f5f5;
+  background-color: ${props => props.theme.cardBackground};
   border-radius: 10px;
   margin-bottom: 20px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -30,7 +30,8 @@ const FileItem = styled.li`
   justify-content: space-between;
   align-items: center;
   padding: 15px;
-  background-color: white;
+  background-color: ${props => props.theme.itemBackground};
+  #color: ${props => props.theme.textColor};
   margin-bottom: 10px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -38,8 +39,8 @@ const FileItem = styled.li`
 `;
 
 const Button = styled.button`
-  background-color: #0078D7;
-  color: white;
+  background-color: ${props => props.theme.primaryButtonColor};
+  color: ${props => props.theme.primaryButtonText};
   border: none;
   padding: 12px 20px;
   border-radius: 20px;
@@ -49,12 +50,13 @@ const Button = styled.button`
   transition: all 0.3s ease;
 
   &:hover {
-    background-color: #005a9e;
+    background-color: ${props => props.theme.primaryButtonHover};
     transform: translateY(-2px);
   }
 
   &:disabled {
-    background-color: #ccc;
+    background-color: ${props => props.theme.disabledButtonColor};
+    color: ${props => props.theme.disabledButtonText};
     cursor: not-allowed;
     transform: none;
   }
@@ -62,6 +64,9 @@ const Button = styled.button`
 
 const IndexingButton = styled(Button)`
   background-color: #4CAF50;
+  &:hover {
+    background-color: #45a049;
+  }
 `;
 
 const rotate = keyframes`
@@ -70,8 +75,8 @@ const rotate = keyframes`
 `;
 
 const LoadingSpinner = styled.div`
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
+  border: 4px solid ${props => props.theme.spinnerColor};
+  border-top: 4px solid ${props => props.theme.spinnerTopColor};
   border-radius: 50%;
   width: 30px;
   height: 30px;
@@ -89,17 +94,17 @@ const FormContainer = styled.form`
 const FileInputLabel = styled.label`
   display: inline-block;
   padding: 12px 20px;
-  background-color: #f0f0f0;
-  color: #333;
-  border: 2px dashed #ccc;
+  background-color: ${props => props.theme.secondaryButtonColor};
+  color: ${props => props.theme.primaryButtonText};
+  border: 2px dashed ${props => props.theme.borderColor};
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
   margin-bottom: 15px;
 
   &:hover {
-    background-color: #e0e0e0;
-    border-color: #999;
+    background-color: ${props => props.theme.secondaryButtonHover};
+    border-color: ${props => props.theme.primaryButtonColor};
   }
 `;
 
@@ -123,8 +128,8 @@ const HiddenCheckbox = styled.input.attrs({ type: 'checkbox' })`
 const StyledCheckbox = styled.div`
   width: 20px;
   height: 20px;
-  background-color: ${props => props.checked ? '#0078D7' : 'white'};
-  border: 2px solid #0078D7;
+  background-color: ${props => props.checked ? props.theme.primaryButtonColor : props.theme.checkboxBackground};
+  border: 2px solid ${props => props.theme.checkboxBorder};
   border-radius: 4px;
   transition: all 0.3s ease;
   display: flex;
@@ -133,18 +138,19 @@ const StyledCheckbox = styled.div`
   margin-right: 10px;
 
   ${HiddenCheckbox}:focus + & {
-    box-shadow: 0 0 0 3px rgba(0, 120, 215, 0.3);
+    box-shadow: 0 0 0 3px ${props => props.theme.focusBoxShadow};
   }
 
   &::after {
     content: '✓';
-    color: white;
+    color: ${props => props.theme.checkboxCheckedColor};
     display: ${props => props.checked ? 'block' : 'none'};
   }
 `;
 
 const CheckboxLabel = styled.span`
   font-size: 14px;
+  color: ${props => props.theme.textColor};
 `;
 
 const StatusMessage = styled.p`
@@ -157,6 +163,10 @@ const ButtonContainer = styled.div`
   display: flex;
   gap: 10px;
   margin-top: 15px;
+`;
+
+const Title = styled.h3`
+  color: ${props => props.theme.titleColor};
 `;
 
 function UploadSection({ indexName, isRestricted, onFilesChange }) {
@@ -245,7 +255,7 @@ function UploadSection({ indexName, isRestricted, onFilesChange }) {
 
   return (
     <UploadContainer>
-      <h3>Upload Files to {indexName}</h3>
+      <Title>Upload Files to {indexName}</Title>
       <FormContainer onSubmit={handleUpload}>
         <FileInputLabel>
           {selectedFileName || 'Choose a file'}

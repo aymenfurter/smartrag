@@ -11,13 +11,16 @@ const Container = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
-  background: white;
+  background: ${props => props.theme.backgroundColor};
+  color: ${props => props.theme.textColor};
   border-radius: 8px;
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
   height: 90vh;
   display: flex;
   flex-direction: column;
+  transition: all 0.3s ease;
 `;
+
 
 const MainContent = styled.div`
   display: flex;
@@ -46,8 +49,7 @@ const LoadingIndicator = styled.div`
   font-size: 18px;
   color: #666;
 `;
-
-function App() {
+function App({ toggleTheme, isDarkMode }) {
   const [activeSection, setActiveSection] = useState('chat');
   const [indexes, setIndexes] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(null);
@@ -110,7 +112,11 @@ function App() {
 
   return (
     <Container>
-      <Header setActiveSection={setActiveSection} />
+      <Header 
+        setActiveSection={setActiveSection} 
+        toggleTheme={toggleTheme} 
+        isDarkMode={isDarkMode}
+      />
       <MainContent>
         <Sidebar>
           {isLoading && !hasLoadedBefore ? (

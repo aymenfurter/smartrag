@@ -16,7 +16,7 @@ const slideIn = keyframes`
 
 const ResearchContainer = styled.div`
   padding: 20px;
-  background-color: #f5f5f5;
+  background-color: ${props => props.theme.backgroundColor};
   border-radius: 10px;
   margin-bottom: 20px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -24,13 +24,13 @@ const ResearchContainer = styled.div`
 `;
 
 const Title = styled.h2`
-  color: #333;
+  color: ${props => props.theme.titleColor};
   font-size: 24px;
   margin-bottom: 10px;
 `;
 
 const Subtitle = styled.p`
-  color: #666;
+  color: ${props => props.theme.subtitleColor};
   margin-bottom: 20px;
 `;
 
@@ -42,36 +42,39 @@ const Form = styled.form`
 
 const Input = styled.input`
   padding: 12px;
-  border: 1px solid #ccc;
+  border: 1px solid ${props => props.theme.inputBorder};
   border-radius: 20px;
   font-size: 16px;
+  background-color: ${props => props.theme.inputBackground};
+  color: ${props => props.theme.inputText};
   transition: all 0.3s ease;
 
   &:focus {
     outline: none;
-    border-color: #0078D7;
-    box-shadow: 0 0 0 2px rgba(0, 120, 215, 0.2);
+    border-color: ${props => props.theme.focusBorderColor};
+    box-shadow: 0 0 0 2px ${props => props.theme.focusBoxShadow};
   }
 `;
 
 const Select = styled.select`
   padding: 12px;
-  border: 1px solid #ccc;
+  border: 1px solid ${props => props.theme.inputBorder};
   border-radius: 20px;
   font-size: 16px;
-  background-color: white;
+  background-color: ${props => props.theme.inputBackground};
+  color: ${props => props.theme.inputText};
   transition: all 0.3s ease;
 
   &:focus {
     outline: none;
-    border-color: #0078D7;
-    box-shadow: 0 0 0 2px rgba(0, 120, 215, 0.2);
+    border-color: ${props => props.theme.focusBorderColor};
+    box-shadow: 0 0 0 2px ${props => props.theme.focusBoxShadow};
   }
 `;
 
 const Button = styled.button`
-  background-color: #0078D7;
-  color: white;
+  background-color: ${props => props.theme.primaryButtonColor};
+  color: ${props => props.theme.primaryButtonText};
   border: none;
   padding: 12px 20px;
   border-radius: 20px;
@@ -81,12 +84,12 @@ const Button = styled.button`
   transition: all 0.3s ease;
 
   &:hover {
-    background-color: #005a9e;
+    background-color: ${props => props.theme.primaryButtonHover};
     transform: translateY(-2px);
   }
 
   &:disabled {
-    background-color: #ccc;
+    background-color: ${props => props.theme.disabledButtonColor};
     cursor: not-allowed;
     transform: none;
   }
@@ -97,7 +100,7 @@ const Button = styled.button`
 `;
 
 const DataSourceContainer = styled.div`
-  background-color: white;
+  background-color: ${props => props.theme.cardBackground};
   padding: 15px;
   border-radius: 10px;
   margin-bottom: 10px;
@@ -121,25 +124,25 @@ const IconButton = styled.button`
   border: none;
   cursor: pointer;
   font-size: 16px;
-  color: #0078D7;
+  color: ${props => props.theme.iconColor};
   transition: color 0.3s ease;
 
   &:hover {
-    color: #005a9e;
+    color: ${props => props.theme.iconHoverColor};
   }
 `;
 
 const ResultsContainer = styled.div`
   margin-top: 20px;
   padding: 20px;
-  background-color: white;
+  background-color: ${props => props.theme.cardBackground};
   border-radius: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
 
 const LoadingSpinner = styled.div`
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #0078D7;
+  border: 4px solid ${props => props.theme.spinnerColor};
+  border-top: 4px solid ${props => props.theme.spinnerTopColor};
   border-radius: 50%;
   width: 30px;
   height: 30px;
@@ -165,13 +168,14 @@ const SliderLabel = styled.label`
   display: block;
   margin-bottom: 5px;
   font-weight: bold;
+  color: ${props => props.theme.labelText};
 `;
 
 const ConversationContainer = styled.div`
   margin-top: 15px;
   max-height: 300px;
   overflow-y: auto;
-  border: 1px solid #e0e0e0;
+  border: 1px solid ${props => props.theme.borderColor};
   border-radius: 10px;
   padding: 10px;
 `;
@@ -180,7 +184,8 @@ const Message = styled.div`
   padding: 10px;
   margin-bottom: 10px;
   border-radius: 10px;
-  background-color: ${props => props.role === 'assistant' ? '#e1f5fe' : '#fff8e1'};
+  background-color: ${props => props.role === 'assistant' ? props.theme.assistantMessageBackground : props.theme.userMessageBackground};
+  color: ${props => props.theme.messageText};
 `;
 
 const ShowDetailsButton = styled(Button)`
@@ -193,7 +198,7 @@ const PDFPreviewContainer = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: ${props => props.theme.modalOverlay};
   display: flex;
   justify-content: center;
   align-items: center;
@@ -202,7 +207,7 @@ const PDFPreviewContainer = styled.div`
 `;
 
 const PDFPreview = styled.div`
-  background-color: white;
+  background-color: ${props => props.theme.modalBackground};
   padding: 20px;
   border-radius: 10px;
   width: 80%;
@@ -223,7 +228,6 @@ const CloseButton = styled(Button)`
   align-self: flex-end;
   margin-bottom: 10px;
 `;
-
 
 function ResearchSection({ indexes, initialQuestion = '', initialIndex = null }) {
   const [question, setQuestion] = useState(initialQuestion);
@@ -341,7 +345,7 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
     return (
       <ResultsContainer>
         <h3>Research Conclusion:</h3>
-        <div 
+       <div 
           dangerouslySetInnerHTML={{ __html: resultsWithClickableLinks }}
           onClick={(e) => {
             if (e.target.tagName === 'A') {
