@@ -19,9 +19,80 @@
 
 We've seen a surge in GenAI-powered apps. While these apps promise a completely new way to interact with computers, they often don't meet user expectations. Here are my thoughts on improving Retrieval-Augmented Generation (RAG) applications, starting with better indexing and exploring the exciting potential of multi-agent systems. I've built this demonstration app called "SmartRAG" that showcases these concepts.
 
-### The Foundation: Quality Data and Mature Frameworks
+# Multi-Agent Systems for RAG
+<img src="assets/multi-agent.png">
 
-Before we discuss topics like multi-agent systems, it's important to understand that any RAG app is only as good as its retrieval component. This part heavily depends on high-quality data and robust pipelines.
+While these indexing improvements significantly enhance the retrieval capabilities of RAG applications, sometimes a single question-answer interaction isn't sufficient for complex queries. This is where multi-agent systems come into play.
+
+SmartRAG has an experimental feature called "Multi-Agent Research". Using Microsoft's [AutoGen](https://microsoft.github.io/autogen/) framework, this feature creates an ensemble of AI agents that collaborate to research more complex topics. Here's how it works:
+
+#### 1. Researcher Agent
+The system creates an agent **for each data source**, allowing for independent research across various indexes.
+
+#### 2. Reviewer Agent
+A reviewer agent oversees the process, guiding the research and synthesizing the findings. This agent also decides when the goal has been reached.
+
+Here's a snippet of how the reviewer agent (from [research.py](https://github.com/aymenfurter/smartrag/blob/main/app/research.py)):
+
+```python
+def create_reviewer_agent(llm_config: Dict[str, Any], single_data_source: bool = False) -> AssistantAgent:
+    system_message = (
+        "I am Reviewer. I review the research and drive conclusions. "
+        "Once I am done, I will ask you to terminate the conversation.\n\n"
+        "My job is to ask questions and guide the research to find the information I need "
+        "and combine it into a final conclusion.\n\n"
+        "I will make sure to ask follow-up questions to get the full picture.\n\n"
+        "Only once I have all the information I need, I will ask you to terminate the conversation.\n\n"
+        "To terminate the conversation, I will write ONLY the string: TERMINATE"
+    )
+
+    return AssistantAgent(
+        name="Reviewer",
+        llm_config=llm_config,
+        is_termination_msg=lambda msg: "TERMINATE" in msg["content"].upper(),
+        system_message=system_message,
+    )
+
+def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
+    # ... [setup code omitted]
+
+    reviewer = create_reviewer_agent(llm_config, single_data_source=(len(data_sources) == 1))
+
+    # Create a group chat with all agents
+    groupchat = GroupChat(
+        agents=[user_proxy, reviewer] + researchers,
+        messages=[],
+        max_round=max_rounds,
+        speaker_selection_method="round_robin",
+    )
+    manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
+
+    # Initiate the research process
+    chat_result = user_proxy.initiate_chat(
+        manager,
+        message=question,
+        max_rounds=max_rounds
+    )
+
+    # ... [result processing and response generation omitted]
+```
+
+#### 3. Time-Bounded Research
+Users can specify how long they're willing to wait for an answer, balancing depth of analysis with response time.
+
+#### 4. Collaborative Querying: 
+Agents may ask follow-up questions, reframe queries, and synthesize information from multiple sources. The internal message flow is accessable to the user:
+
+<img src="assets/details.png">
+
+#### 5. Citation and Verification
+All responses include citations, allowing users to verify the accuracy of the information.
+
+This multi-agent approach mimics the way humans conduct research, breaking down complex questions, exploring multiple angles, and synthesizing information from various sources. It has the potential to provide more comprehensive and nuanced answers than traditional single-query RAG systems.
+
+# The Foundation: Quality Data and Mature Frameworks
+
+Use cases like multi-agent systems are enabled by high quality data and mature AI frameworks, it's important to understand that any RAG app is only as good as its retrieval component. This part heavily depends on high-quality data and robust ingestion pipelines.
 
 The AI development landscape is evolving rapidly. Frameworks, SDKs, and best practices needed time to mature. I believe we're now at a point where these tools have become more stable and reliable. 
 
@@ -246,76 +317,6 @@ def generate_qa_pairs(table_content: str) -> str:
 ### 4. Page-Level Splitting
 By splitting documents at the page-level during preprocessing, we can directly open the relevant page when verifying citations. If there is a lot of text on a single page, Azure AI Search will create text chunks within that specific page.
 
-# Multi-Agent Systems for RAG
-<img src="assets/multi-agent.png">
-
-While these indexing improvements significantly enhance the retrieval capabilities of RAG applications, sometimes a single question-answer interaction isn't sufficient for complex queries. This is where multi-agent systems come into play.
-
-SmartRAG has an experimental feature called "Multi-Agent Research". Using Microsoft's [AutoGen](https://microsoft.github.io/autogen/) framework, this feature creates an ensemble of AI agents that collaborate to research more complex topics. Here's how it works:
-
-#### 1. Researcher Agent
-The system creates an agent **for each data source**, allowing for independent research across various indexes.
-
-#### 2. Reviewer Agent
-A reviewer agent oversees the process, guiding the research and synthesizing the findings. This agent also decides when the goal has been reached.
-
-Here's a snippet of how the reviewer agent (from [research.py](https://github.com/aymenfurter/smartrag/blob/main/app/research.py)):
-
-```python
-def create_reviewer_agent(llm_config: Dict[str, Any], single_data_source: bool = False) -> AssistantAgent:
-    system_message = (
-        "I am Reviewer. I review the research and drive conclusions. "
-        "Once I am done, I will ask you to terminate the conversation.\n\n"
-        "My job is to ask questions and guide the research to find the information I need "
-        "and combine it into a final conclusion.\n\n"
-        "I will make sure to ask follow-up questions to get the full picture.\n\n"
-        "Only once I have all the information I need, I will ask you to terminate the conversation.\n\n"
-        "To terminate the conversation, I will write ONLY the string: TERMINATE"
-    )
-
-    return AssistantAgent(
-        name="Reviewer",
-        llm_config=llm_config,
-        is_termination_msg=lambda msg: "TERMINATE" in msg["content"].upper(),
-        system_message=system_message,
-    )
-
-def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
-    # ... [setup code omitted]
-
-    reviewer = create_reviewer_agent(llm_config, single_data_source=(len(data_sources) == 1))
-
-    # Create a group chat with all agents
-    groupchat = GroupChat(
-        agents=[user_proxy, reviewer] + researchers,
-        messages=[],
-        max_round=max_rounds,
-        speaker_selection_method="round_robin",
-    )
-    manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
-
-    # Initiate the research process
-    chat_result = user_proxy.initiate_chat(
-        manager,
-        message=question,
-        max_rounds=max_rounds
-    )
-
-    # ... [result processing and response generation omitted]
-```
-
-#### 3. Time-Bounded Research
-Users can specify how long they're willing to wait for an answer, balancing depth of analysis with response time.
-
-#### 4. Collaborative Querying: 
-Agents may ask follow-up questions, reframe queries, and synthesize information from multiple sources. The internal message flow is accessable to the user:
-
-<img src="assets/details.png">
-
-#### 5. Citation and Verification
-All responses include citations, allowing users to verify the accuracy of the information.
-
-This multi-agent approach mimics the way humans conduct research, breaking down complex questions, exploring multiple angles, and synthesizing information from various sources. It has the potential to provide more comprehensive and nuanced answers than traditional single-query RAG systems.
 
 # Cloud Architecture
 
