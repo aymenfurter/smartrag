@@ -6,9 +6,9 @@
 
   <h1 align="center">Elevating RAG with Multi-Agent Systems</h1>
   <p align="center">
-    🐞 <a href="https://github.com/microsoft/custom-monaco-opilot-demo/issues">Report Bug</a>
+    🐞 <a href="https://github.com/aymenfurter/smartrag/issues">Report Bug</a>
     ·
-    💡 <a href="https://github.com/microsoft/custom-monaco-copilot-demo/issues">Request Feature</a>
+    💡 <a href="https://github.com/aymenfurter/smartrag/issues">Request Feature</a>
 
   [![Python Tests](https://github.com/aymenfurter/smartrag/actions/workflows/python-tests.yml/badge.svg)](https://github.com/aymenfurter/smartrag/actions/workflows/python-tests.yml)
   </p>
@@ -17,13 +17,13 @@
 
 ## In the Wake of the Generative AI Revolution
 
-We've seen a surge in GenAI-powered apps. While these apps promise a completely new way to interact with computers, they often don't meet user expectations. Here are my thoughts on improving Retrieval-Augmented Generation (RAG) applications, starting with better indexing and exploring the exciting potential of multi-agent systems. I've also built a demonstration app called "SmartRAG" that showcases these concepts effectively.
+We've seen a surge in GenAI-powered apps. While these apps promise a completely new way to interact with computers, they often don't meet user expectations. Here are my thoughts on improving Retrieval-Augmented Generation (RAG) applications, starting with better indexing and exploring the exciting potential of multi-agent systems. I've built this demonstration app called "SmartRAG" that showcases these concepts.
 
 ### The Foundation: Quality Data and Mature Frameworks
 
-Before we discuss advanced topics like multi-agent systems, it's important to understand that any RAG app is only as good as its retrieval component. This part heavily depends on high-quality data and robust pipelines.
+Before we discuss topics like multi-agent systems, it's important to understand that any RAG app is only as good as its retrieval component. This part heavily depends on high-quality data and robust pipelines.
 
-The AI development landscape is evolving rapidly. Frameworks, SDKs, and best practices needed time to mature. I believe we're now at a point where these tools have become more stable and reliable. For example, Microsoft's recent release of Semantic Kernel 1.0 for Java and Python illustrates this maturation process.
+The AI development landscape is evolving rapidly. Frameworks, SDKs, and best practices needed time to mature. I believe we're now at a point where these tools have become more stable and reliable. 
 
 ### Leveraging Cloud-Native Capabilities
 
@@ -33,7 +33,7 @@ One pitfall I've noticed is that developers may try to reinvent the wheel, creat
 
 To showcase the potential of leveraging Azure services and focusing on indexing improvements, I've developed a sample application called SmartRAG. This application uses Azure OpenAI Service's ingestion job feature, which simplifies the process of ingesting data into AI Search.
 
-Here are some key indexing time improvements I've implemented in SmartRAG:
+Here are some key indexing time improvements, implemented in SmartRAG:
 
 
 ### 1. **Document Intelligence**: 
@@ -117,7 +117,7 @@ With the GPT-4o enriched caption, we get a markdown like this:
 The city stretches on both sides of the Limmat [...]
 ```
 
-This enables a new range of questions that users can ask, covering also the visual aspect oft he document.
+This enables a new range of questions that users can ask, covering also the visual aspect of the document.
 
 Let's take a look at the [code](https://github.com/aymenfurter/smartrag/blob/main/app/doc_intelligence.py) that enables this.
 ```python
@@ -251,7 +251,7 @@ By splitting documents at the page-level during preprocessing, we can directly o
 
 While these indexing improvements significantly enhance the retrieval capabilities of RAG applications, sometimes a single question-answer interaction isn't sufficient for complex queries. This is where multi-agent systems come into play.
 
-I've added an experimental feature to SmartRAG called "Multi-Agent Research". Using Microsoft's [AutoGen](https://microsoft.github.io/autogen/) framework, this feature creates an ensemble of AI agents that collaborate to research more complex topics. Here's how it works:
+SmartRAG has an experimental feature called "Multi-Agent Research". Using Microsoft's [AutoGen](https://microsoft.github.io/autogen/) framework, this feature creates an ensemble of AI agents that collaborate to research more complex topics. Here's how it works:
 
 #### 1. Researcher Agent
 The system creates an agent **for each data source**, allowing for independent research across various indexes.
@@ -327,7 +327,7 @@ To implement these features, smartRAG leverages several key Azure services:
 
 3. [Document Intelligence (Preview API Version)](https://azure.microsoft.com/en-us/products/ai-services/ai-document-intelligence): Used for converting unstructured documents into structured Markdown format.
 
-4. [Azure AI Search](https://azure.microsoft.com/en-us/products/ai-services/ai-search): Stores vectors and performs search queries. Data ingestion is handled through **Ingestion Jobs**, while retrieval is implemented using [OYD](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/use-your-data?tabs=ai-search)(Azure OpenAI On Your Data)
+4. [Azure AI Search](https://azure.microsoft.com/en-us/products/ai-services/ai-search): Stores vectors and performs search queries. Data ingestion is handled through **Ingestion Jobs**, while retrieval is implemented using [OYD](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/use-your-data?tabs=ai-search) (Azure OpenAI On Your Data)
 
 5. [GPT-4 Vision (GPT-4o)](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#gpt-4o-and-gpt-4-turbo): Enables the processing and description of images within documents.
 
@@ -356,6 +356,8 @@ SmartRAG can be easily deployed using the **Azure Developer CLI (azd)**. Follow 
    ```
    azd up
    ```
+
+Make sure you select a region with sufficent quota for GPT-4o.
 
 This command will:
 - Create necessary Azure resources
