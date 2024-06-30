@@ -5,6 +5,8 @@ import ChatSection from './components/ChatSection';
 import UploadSection from './components/UploadSection';
 import ResearchSection from './components/ResearchSection';
 import IndexRibbon from './components/IndexRibbon';
+import ConfigProvider from './components/ConfigContext';
+
 
 const Container = styled.div`
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -111,57 +113,59 @@ function App({ toggleTheme, isDarkMode }) {
   };
 
   return (
-    <Container>
-      <Header 
-        setActiveSection={setActiveSection} 
-        toggleTheme={toggleTheme} 
-        isDarkMode={isDarkMode}
-      />
-      <MainContent>
-        <Sidebar>
-          {isLoading && !hasLoadedBefore ? (
-            <LoadingIndicator>Loading indexes...</LoadingIndicator>
-          ) : (
-            <IndexRibbon 
-              indexes={indexes} 
-              selectedIndex={selectedIndex} 
-              onSelectIndex={handleSelectIndex}
-              onIndexesChange={fetchIndexes}
-              onDeleteIndex={handleDeleteIndex}
-            />
-          )}
-        </Sidebar>
-        <ContentArea>
-          {selectedIndex ? (
-            <>
-              {activeSection === 'chat' && (
-                <ChatSection 
-                  indexName={selectedIndex[0]} 
-                  isRestricted={selectedIndex[1]} 
-                  onStartResearch={handleStartResearch}
-                />
-              )}
-              {activeSection === 'upload' && (
-                <UploadSection 
-                  indexName={selectedIndex[0]} 
-                  isRestricted={selectedIndex[1]}
-                  onFilesChange={fetchIndexes}
-                />
-              )}
-              {activeSection === 'research' && (
-                <ResearchSection 
-                  indexes={indexes}
-                  initialQuestion={researchQuestion}
-                  initialIndex={selectedIndex}
-                />
-              )}
-            </>
-          ) : (
-            <LoadingIndicator>Select an index to begin</LoadingIndicator>
-          )}
-        </ContentArea>
-      </MainContent>
-    </Container>
+    <ConfigProvider>
+      <Container>
+        <Header 
+          setActiveSection={setActiveSection} 
+          toggleTheme={toggleTheme} 
+          isDarkMode={isDarkMode}
+        />
+        <MainContent>
+          <Sidebar>
+            {isLoading && !hasLoadedBefore ? (
+              <LoadingIndicator>Loading indexes...</LoadingIndicator>
+            ) : (
+              <IndexRibbon 
+                indexes={indexes} 
+                selectedIndex={selectedIndex} 
+                onSelectIndex={handleSelectIndex}
+                onIndexesChange={fetchIndexes}
+                onDeleteIndex={handleDeleteIndex}
+              />
+            )}
+          </Sidebar>
+          <ContentArea>
+            {selectedIndex ? (
+              <>
+                {activeSection === 'chat' && (
+                  <ChatSection 
+                    indexName={selectedIndex[0]} 
+                    isRestricted={selectedIndex[1]} 
+                    onStartResearch={handleStartResearch}
+                  />
+                )}
+                {activeSection === 'upload' && (
+                  <UploadSection 
+                    indexName={selectedIndex[0]} 
+                    isRestricted={selectedIndex[1]}
+                    onFilesChange={fetchIndexes}
+                  />
+                )}
+                {activeSection === 'research' && (
+                  <ResearchSection 
+                    indexes={indexes}
+                    initialQuestion={researchQuestion}
+                    initialIndex={selectedIndex}
+                  />
+                )}
+              </>
+            ) : (
+              <LoadingIndicator>Select an index to begin</LoadingIndicator>
+            )}
+          </ContentArea>
+        </MainContent>
+      </Container>
+    </ConfigProvider>
   );
 }
 

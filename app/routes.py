@@ -14,6 +14,10 @@ from .ingestion_job import create_ingestion_job, delete_ingestion_index
 from .research import research_with_data
 from .chat_service import chat_with_data, refine_message
 from .index_manager import create_index_manager, ContainerNameTooLongError, IndexConfig
+from .utils import easyauth_enabled
+
+def are_operations_restricted():
+    return os.getenv('RESTRICT_OPERATIONS', 'false').lower() == 'true'
 
 class RouteConfigurator:
     def __init__(self, app: Flask, blob_service=None, doc_intelligence=None, ingestion_job=None, research=None, chat_service=None):
@@ -24,13 +28,19 @@ class RouteConfigurator:
         self.research = research or research_with_data
         self.chat_service = chat_service or chat_with_data
         self.refine_service = refine_message
+        self.operations_restricted = are_operations_restricted()
+
 
     def configure_routes(self) -> Flask:
         self._add_index_routes()
         self._add_file_routes()
         self._add_chat_routes()
         self._add_pdf_route()
+        self._add_config_route()
         return self.app
+
+    def _add_config_route(self):
+        self.app.route('/config', methods=['GET'])(self._get_config)
 
     def _add_index_routes(self):
         self.app.route('/indexes', methods=['GET'])(self._get_indexes)
@@ -56,7 +66,13 @@ class RouteConfigurator:
         indexes = list_indexes(user_id)
         return jsonify({"indexes": indexes}), 200
 
+    def _get_config(self):
+        return jsonify({"operationsRestricted": self.operations_restricted, "easyAuthEnabled": easyauth_enabled(request)}), 200
+
     def _create_index(self) -> Tuple[Response, int]:
+        if self.operations_restricted:
+            return jsonify({"error": "Operation not allowed"}), 403
+
         user_id = get_user_id(request)
         data = request.json
         index_config = self._validate_index_creation_data(data, user_id)
@@ -81,6 +97,9 @@ class RouteConfigurator:
         return jsonify({"message": "Index created successfully", "containers": containers}), 201
 
     def _remove_index(self, index_name: str) -> Tuple[Response, int]:
+        if self.operations_restricted:
+            return jsonify({"error": "Operation not allowed"}), 403
+
         user_id = get_user_id(request)
         is_restricted = request.args.get('is_restricted', 'true').lower() == 'true'
         
@@ -97,6 +116,9 @@ class RouteConfigurator:
         return jsonify({"message": "Index deleted successfully"}), 200
 
     def _upload_file(self, index_name: str) -> Tuple[Response, int]:
+        if self.operations_restricted:
+            return jsonify({"error": "Operation not allowed"}), 403
+
         user_id = get_user_id(request)
         is_restricted = request.args.get('is_restricted', 'true').lower() == 'true'
         is_multimodal = request.form.get('multimodal', 'false').lower() == 'true'
@@ -150,6 +172,9 @@ class RouteConfigurator:
         return self.research(data, user_id)
 
     def _delete_file(self, index_name: str, filename: str) -> Tuple[Response, int]:
+        if self.operations_restricted:
+            return jsonify({"error": "Operation not allowed"}), 403
+
         user_id = get_user_id(request)
         is_restricted = request.args.get('is_restricted', 'true').lower() == 'true'
         

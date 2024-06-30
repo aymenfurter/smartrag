@@ -8,7 +8,7 @@ from app.routes import configure_routes
 load_dotenv()
 
 app = Flask(__name__, static_folder='static', static_url_path='')
-CORS(app)  # Enable CORS for the entire application
+CORS(app) 
 
 UPLOAD_FOLDER = Path('/tmp/uploads')
 PROCESSED_FOLDER = Path('/tmp/processed')

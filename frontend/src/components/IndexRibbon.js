@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { ConfigContext } from './ConfigContext'; // Assuming you have a ConfigContext
 
 const fadeIn = keyframes`
   from { opacity: 0; }
@@ -151,7 +152,8 @@ const CheckboxLabel = styled.label`
 
 function IndexRibbon({ indexes, selectedIndex, onSelectIndex, onIndexesChange, onDeleteIndex }) {
   const [newIndexName, setNewIndexName] = useState('');
-  const [isRestricted, setIsRestricted] = useState(true);
+  const [isRestricted, setIsRestricted] = useState(false);
+  const { operationsRestricted, easyAuthEnabled } = useContext(ConfigContext);
 
   const handleCreateIndex = async (e) => {
     e.preventDefault();
@@ -203,40 +205,46 @@ function IndexRibbon({ indexes, selectedIndex, onSelectIndex, onIndexesChange, o
             onClick={() => onSelectIndex(index)}
           >
             <span>{index[0]} {index[1] ? '(hidden)' : ''}</span>
-            <DeleteButton
-              selected={selectedIndex && selectedIndex[0] === index[0] && selectedIndex[1] === index[1]}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteIndex(index[0], index[1]);
-              }}
-            >
-              <FontAwesomeIcon icon={faTrash} />
-            </DeleteButton>
+            {!operationsRestricted && (
+              <DeleteButton
+                selected={selectedIndex && selectedIndex[0] === index[0] && selectedIndex[1] === index[1]}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteIndex(index[0], index[1]);
+                }}
+              >
+                <FontAwesomeIcon icon={faTrash} />
+              </DeleteButton>
+            )}
           </IndexItem>
         ))}
       </IndexList>
-      <CreateIndexForm onSubmit={handleCreateIndex}>
-        <Input
-          type="text"
-          value={newIndexName}
-          onChange={(e) => setNewIndexName(e.target.value.toLowerCase())}
-          placeholder="index name"
-          maxLength="8"
-        />
-        <CheckboxContainer>
-          <StyledCheckbox
-            type="checkbox"
-            id="restrictedCheckbox"
-            checked={isRestricted}
-            onChange={(e) => setIsRestricted(e.target.checked)}
+      {!operationsRestricted && (
+        <CreateIndexForm onSubmit={handleCreateIndex}>
+          <Input
+            type="text"
+            value={newIndexName}
+            onChange={(e) => setNewIndexName(e.target.value.toLowerCase())}
+            placeholder="index name"
+            maxLength="8"
           />
-          <CheckboxLabel htmlFor="restrictedCheckbox">Restricted</CheckboxLabel>
-        </CheckboxContainer>
-        <Button type="submit">
-          <FontAwesomeIcon icon={faPlus} style={{ marginRight: '5px' }} />
-          Create Index
-        </Button>
-      </CreateIndexForm>
+          {easyAuthEnabled && (
+            <CheckboxContainer>
+              <StyledCheckbox
+                type="checkbox"
+                id="restrictedCheckbox"
+                checked={isRestricted}
+                onChange={(e) => setIsRestricted(e.target.checked)}
+              />
+              <CheckboxLabel htmlFor="restrictedCheckbox">Restricted</CheckboxLabel>
+            </CheckboxContainer>
+          )}
+          <Button type="submit">
+            <FontAwesomeIcon icon={faPlus} style={{ marginRight: '5px' }} />
+            Create Index
+          </Button>
+        </CreateIndexForm>
+      )}
     </RibbonContainer>
   );
 }

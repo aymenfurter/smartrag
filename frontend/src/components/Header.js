@@ -2,7 +2,9 @@ import React from 'react';
 import styled, { keyframes } from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faComments, faUpload, faMagnifyingGlass, faTrash, faSun, faMoon } from '@fortawesome/free-solid-svg-icons';
-import logo from './logo.png'; // Make sure the path is correct
+import logo from './logo.png'; 
+import { ConfigContext } from './ConfigContext';
+import { useContext } from 'react';
 
 const fadeIn = keyframes`
   from { opacity: 0; }
@@ -117,9 +119,13 @@ const ThemeToggle = styled(NavButton)`
 `;
 
 function Header({ activeSection, setActiveSection, toggleTheme, isDarkMode }) {
+  const { operationsRestricted } = useContext(ConfigContext);
+
   const navItems = [
     { icon: faComments, text: 'Chat', section: 'chat' },
-    { icon: faUpload, text: 'Upload', section: 'upload' },
+    ...(!operationsRestricted ? [
+      { icon: faUpload, text: 'Upload', section: 'upload' },
+    ] : []),
     { icon: faMagnifyingGlass, text: 'Multi-Agent Research', section: 'research' },
     { icon: faTrash, text: 'Clear', action: () => localStorage.removeItem('chatHistory') },
   ];

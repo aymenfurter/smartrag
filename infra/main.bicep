@@ -177,7 +177,7 @@ module app 'core/host/container-app.bicep' = {
     containerAppsEnvironmentName: containerApps.outputs.environmentName
     env: [
       {
-        name: 'AZURE_STORAGE_ACCOUNT'
+        name: 'STORAGE_ACCOUNT_NAME'
         value: storage.outputs.name
       }
       {
@@ -205,7 +205,7 @@ module app 'core/host/container-app.bicep' = {
         value: azureOpenAIEmbeddingModel
       }
       {
-        name: 'AZURE_OPENAI_DEPLOYMENT_ID'
+        name: 'AZURE_OPENAI_DEPLOYMENT_NAME'
         value: azureOpenAIGPTModel
       }
       {
@@ -213,7 +213,7 @@ module app 'core/host/container-app.bicep' = {
         value: monitoring.outputs.applicationInsightsConnectionString
       }
       {
-        name: 'DOCUMENTINTELLIGENCE_API_KEY'
+        name: 'DOCUMENTINTELLIGENCE_KEY'
         secretRef: 'azure-formrecognizer-key'
       }
       {
