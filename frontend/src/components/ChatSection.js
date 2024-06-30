@@ -459,7 +459,7 @@ function ChatSection({ indexName, isRestricted, onStartResearch }) {
                 <li key={citationIndex}>
                   <a href="#" onClick={(e) => { e.preventDefault(); handleCitationClick(citation); }}>
                     {citation.title}
-                  </a> [doc{citationIndex}]
+                  </a> [doc{citationIndex+1}]
                 </li>
               ))}
             </ul>

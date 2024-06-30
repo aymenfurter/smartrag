@@ -53,7 +53,7 @@ def create_ingestion_job(container_name):
         },
         "completionAction": 1 
     }
-    
+
     response = requests.put(url, headers=headers, json=payload)
     
     if response.status_code == 200:
