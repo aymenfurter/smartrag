@@ -4,6 +4,7 @@ from flask import jsonify, Response, stream_with_context
 from autogen import AssistantAgent, UserProxyAgent, GroupChat, GroupChatManager
 from .azure_openai import create_payload, create_data_source, get_openai_config
 from .index_manager import create_index_manager, ContainerNameTooLongError
+import time
 import requests
 
 def create_agent(name: str, system_message: str, llm_config: Dict[str, Any]) -> AssistantAgent:
@@ -71,6 +72,11 @@ def search(query: str, index: str) -> str:
         False
     )
     response = requests.post(url, headers=headers, json=payload)
+
+    if response.status_code == 429:
+        retry_after = int(response.headers.get("Retry-After", 5))
+        time.sleep(retry_after*2)
+        response = requests.post(url, headers=headers, json=payload)
     
     if "choices" not in response.json():
         raise Exception("FATAL ERROR: No response from OpenAI API. TERMINATE.")
