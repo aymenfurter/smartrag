@@ -2,7 +2,7 @@
 
 <br />
 <div align="center">
-    <img  src="assets/screenshot.png?raw=true">
+    <img src="assets/multi-agent.png">
 
   <h1 align="center">Elevating RAG with Multi-Agent Systems</h1>
   <p align="center">
@@ -20,7 +20,7 @@
 We've seen a surge in GenAI-powered apps. While these apps promise a completely new way to interact with computers, they often don't meet user expectations. Here are my thoughts on improving Retrieval-Augmented Generation (RAG) applications, starting with better indexing and exploring the exciting potential of multi-agent systems. I've built this demonstration app called "SmartRAG" that showcases these concepts.
 
 # Multi-Agent Systems for RAG
-<img src="assets/multi-agent.png">
+
 
 While these indexing improvements significantly enhance the retrieval capabilities of RAG applications, sometimes a single question-answer interaction isn't sufficient for complex queries. This is where multi-agent systems come into play.
 
@@ -91,6 +91,7 @@ All responses include citations, allowing users to verify the accuracy of the in
 This multi-agent approach mimics the way humans conduct research, breaking down complex questions, exploring multiple angles, and synthesizing information from various sources. It has the potential to provide more comprehensive and nuanced answers than traditional single-query RAG systems.
 
 # The Foundation: Quality Data and Mature Frameworks
+<img  src="assets/screenshot.png?raw=true">
 
 Use cases like multi-agent systems are enabled by high quality data and mature AI frameworks, it's important to understand that any RAG app is only as good as its retrieval component. This part heavily depends on high-quality data and robust ingestion pipelines.
 
@@ -135,7 +136,7 @@ def convert_pdf_page_to_md(pdf_path: str, page_num: int, output_dir: str, prefix
     # ... [output writing code omitted for brevity]
 ```
 
-### 2. Multimodal Post-processing
+### 2. Multimodal Post-processing of Images and Graphs
 For documents containing images or graphs, we can perform additional postprocessing to improve the generated markdown. 
 
 Additionally to the markdown, Document Intelligence will provide us with a list of figures with related coordinates:
