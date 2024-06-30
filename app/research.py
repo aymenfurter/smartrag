@@ -121,6 +121,11 @@ def generate_final_conclusion(chat_result: Any) -> str:
     )
 
     response = requests.post(url, headers=headers, json=payload)
+
+    if response.status_code == 429:
+        retry_after = int(response.headers.get("Retry-After", 5))
+        time.sleep(retry_after*2)
+        response = requests.post(url, headers=headers, json=payload)
     
     return response.json()["choices"][0]["message"]["content"]
 
