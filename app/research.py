@@ -15,7 +15,7 @@ def create_agent(name: str, system_message: str, llm_config: Dict[str, Any]) -> 
         system_message=system_message,
     )
 
-def create_reviewer_agent(llm_config: Dict[str, Any], single_data_source: bool = False) -> AssistantAgent:
+def create_reviewer_agent(llm_config: Dict[str, Any], list_of_researchers: str, single_data_source: bool = False) -> AssistantAgent:
     """Create a reviewer agent based on the number of data sources."""
     system_message = (
         "I am Reviewer. I review the research and drive conclusions. "
@@ -24,6 +24,7 @@ def create_reviewer_agent(llm_config: Dict[str, Any], single_data_source: bool =
         "and combine it into a final conclusion.\n\n"
         "I will make sure to ask follow-up questions to get the full picture.\n\n"
         "Only once I have all the information I need, I will ask you to terminate the conversation.\n\n"
+        "Your researcher is: " + list_of_researchers + "\n\n"
         "To terminate the conversation, I will write ONLY the string: TERMINATE"
     )
 
@@ -37,6 +38,7 @@ def create_reviewer_agent(llm_config: Dict[str, Any], single_data_source: bool =
             "and combine it into a final conclusion.\n\n"
             "I will make sure to take information from each researcher and ask follow-up questions "
             "to get the full picture.\n\n"
+            "Your team of researchers includes: " + list_of_researchers + "\n\n"
             "Only once I have all the information I need, I will ask you to terminate the conversation.\n\n"
             "To terminate the conversation, I will write ONLY the string: TERMINATE"
         )
@@ -58,6 +60,7 @@ def create_user_proxy() -> UserProxyAgent:
 
 def search(query: str, index: str) -> str:
     """Perform a search query on the given index."""
+
     config = get_openai_config()
     url = f"{config['OPENAI_ENDPOINT']}/openai/deployments/{config['AZURE_OPENAI_DEPLOYMENT_ID']}/chat/completions?api-version=2024-02-15-preview"
     headers = {
@@ -79,7 +82,10 @@ def search(query: str, index: str) -> str:
         response = requests.post(url, headers=headers, json=payload)
     
     if "choices" not in response.json():
+        if response.status_code == 429:
+            raise Exception("FATAL ERROR: Rate limit exceeded. Try again later.")
         raise Exception("FATAL ERROR: No response from OpenAI API. TERMINATE.")
+
 
     content = response.json()["choices"][0]["message"]["content"]
     citations = response.json()["choices"][0]["message"].get("context", {}).get("citations", [])
@@ -151,6 +157,9 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
     user_proxy = create_user_proxy()
     researchers = []
 
+    researcher_agents_list = ", ".join([source.get("name", "") or source.get("index", "") for source in data_sources])
+
+
     for source in data_sources:
         is_restricted = source.get("isRestricted", True)
         
@@ -165,6 +174,7 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
         search_index = index_manager.get_search_index_name()
         index_name = source.get("name", "") or source.get("index", "")
 
+
         researcher = create_agent(
             f"{index_name}Researcher",
             f"""I am a Researcher. I am an expert for {index_name}. I will investigate and research any questions regarding this specific data source. I will always use the search feature to find the information I need.  
@@ -176,6 +186,8 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
             {source['description']}
 
             Through the search feature, I am querying a semantic search engine so it's good to have long, detailed & descriptive sentences. I can try out to rephrase your questions to get more information.
+
+            I do not use any common knowledge, I always use the search feature to find the information I need.
 
             I will make sure to detail your search queries as much as possible.""",
             llm_config
@@ -198,7 +210,7 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
             name=f"lookup_{index_name}"
         )(lookup_function)
 
-    reviewer = create_reviewer_agent(llm_config, single_data_source=(len(data_sources) == 1))
+    reviewer = create_reviewer_agent(llm_config, single_data_source=(len(data_sources) == 1), list_of_researchers=researcher_agents_list)
 
     groupchat = GroupChat(
         agents=[user_proxy, reviewer] + researchers,

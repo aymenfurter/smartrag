@@ -274,6 +274,14 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
   const handleDataSourceChange = (index, field, value) => {
     const newDataSources = [...dataSources];
     newDataSources[index][field] = value;
+    
+    if (field === 'index') {
+      const selectedIndex = indexes.find(idx => idx[0] === value);
+      if (selectedIndex) {
+        newDataSources[index].isRestricted = selectedIndex[1];
+      }
+    }
+    
     setDataSources(newDataSources);
   };
 
