@@ -26,6 +26,8 @@ While these indexing improvements significantly enhance the retrieval capabiliti
 
 SmartRAG has an experimental feature called "Multi-Agent Research". Using Microsoft's [AutoGen](https://microsoft.github.io/autogen/) framework, this feature creates an ensemble of AI agents that collaborate to research more complex topics. Here's how it works:
 
+<img src="assets/agents.png" width="350">
+
 #### 1. Researcher Agent
 The system creates an agent **for each data source**, allowing for independent research across various indexes.
 
@@ -87,6 +89,7 @@ Agents may ask follow-up questions, reframe queries, and synthesize information 
 
 #### 5. Citation and Verification
 All responses include citations, allowing users to verify the accuracy of the information.
+
 
 This multi-agent approach mimics the way humans conduct research, breaking down complex questions, exploring multiple angles, and synthesizing information from various sources. It has the potential to provide more comprehensive and nuanced answers than traditional single-query RAG systems.
 
