@@ -246,7 +246,7 @@ def generate_qa_pairs(table_content: str) -> str:
 ### 4. Page-Level Splitting
 By splitting documents at the page-level during preprocessing, we can directly open the relevant page when verifying citations. If there is a lot of text on a single page, Azure AI Search will create text chunks within that specific page.
 
-# Multi-Agent Systems for RA
+# Multi-Agent Systems for RAG
 <img src="assets/multi-agent.png">
 
 While these indexing improvements significantly enhance the retrieval capabilities of RAG applications, sometimes a single question-answer interaction isn't sufficient for complex queries. This is where multi-agent systems come into play.
