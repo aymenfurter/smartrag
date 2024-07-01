@@ -344,7 +344,7 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
       prefix  = "http://localhost:5000/";
     }
 
-    const pdfUrl = `${prefix}pdf/${dataSource.index}/${encodeURIComponent(citation)}?is_restricted=${dataSource.isRestricted}`;
+    const pdfUrl = `${prefix}pdf/${dataSource}/${encodeURIComponent(citation)}?is_restricted=${dataSource.isRestricted}`;
     setPDFPreview(pdfUrl);
   }, []);
 
@@ -369,10 +369,13 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
             if (e.target.tagName === 'A') {
               e.preventDefault();
               let citation = e.target.getAttribute('href');
-              const parts = citation.split('/');
+              let parts = citation.split('/');
+              let ingestionPart = parts[parts.length - 2];
+              let baseString = ingestionPart.replace(/-ingestion$/, '');
+              let result = baseString.substring(baseString.lastIndexOf('-') + 1);
               const filename = parts.pop().replace('.md', '.pdf');
         
-              handleCitationClick(filename, dataSources[0]);
+              handleCitationClick(filename, result);
             }
           
           }}

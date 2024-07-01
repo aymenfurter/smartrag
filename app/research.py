@@ -24,24 +24,11 @@ def create_reviewer_agent(llm_config: Dict[str, Any], list_of_researchers: str, 
         "and combine it into a final conclusion.\n\n"
         "I will make sure to ask follow-up questions to get the full picture.\n\n"
         "Only once I have all the information I need, I will ask you to terminate the conversation.\n\n"
+        "Keep an eye on the referenced documents, if it looks like not the right documents were referenced, ask the researcher to reframe the question to find additional data sources.\n\n"
+        "Try follow-up questions in case you the answer looks incomplete.\n\n"
         "Your researcher is: " + list_of_researchers + "\n\n"
         "To terminate the conversation, I will write ONLY the string: TERMINATE"
     )
-
-    if not single_data_source:
-        system_message = (
-            "I am Reviewer. I review the research of the group and drive conclusions. "
-            "Once I am done, I will ask you to terminate the conversation.\n\n"
-            "I am working with a team of researchers. Each researcher is an expert on a specific data source. "
-            "They will be able to give me only part of the information I need.\n\n"
-            "My job is to ask questions and guide the researchers to find the information I need "
-            "and combine it into a final conclusion.\n\n"
-            "I will make sure to take information from each researcher and ask follow-up questions "
-            "to get the full picture.\n\n"
-            "Your team of researchers includes: " + list_of_researchers + "\n\n"
-            "Only once I have all the information I need, I will ask you to terminate the conversation.\n\n"
-            "To terminate the conversation, I will write ONLY the string: TERMINATE"
-        )
 
     return AssistantAgent(
         name="Reviewer",
@@ -83,7 +70,7 @@ def search(query: str, index: str) -> str:
     
     if "choices" not in response.json():
         if response.status_code == 429:
-            raise Exception("FATAL ERROR: Rate limit exceeded. Try again later.")
+            raise Exception("ERROR: Rate limit exceeded. Try again later.")
         raise Exception("FATAL ERROR: No response from OpenAI API. TERMINATE.")
 
 
@@ -107,11 +94,12 @@ def generate_final_conclusion(chat_result: Any) -> str:
     }
     system_prompt = (
         "Based on the following chat history, provide a detailed final conclusion covering:\n\n"
-        "Key Insights\n"
-        "Final Conclusion\n"
-        "Relevant Citations and Sources (Please always reference URLs to the sources used in the research!)\n\n"
-        "Do not report on the process that was used, just conclude. "
-        "Do not come up with new information, just summarize the chat history."
+        "- Key Insights\n"
+        "- Final Conclusion\n"
+        "- Relevant Citations and Sources (Please ALWAYS reference original URLs to the sources used in the research!)\n\n"
+        "Important:\n- DONT CHANGE ANY URL! Use original URLs (INCLUDING THE ___Pagexxx at the end!) like these: https://xxx.blob.core.windows.net/open-baloise-ingestion/myfile.pdf___Page101.md\n"
+        "- Do not report on the process that was used, just conclude. \n"
+        "- Do not come up with new information, just summarize the chat history. \n"
     )
 
     chat_history = [{"role": message['role'], "content": message.get('content', '')} for message in chat_result.chat_history]
@@ -130,7 +118,7 @@ def generate_final_conclusion(chat_result: Any) -> str:
 
     if response.status_code == 429:
         retry_after = int(response.headers.get("Retry-After", 5))
-        time.sleep(retry_after*2)
+        time.sleep(retry_after*3)
         response = requests.post(url, headers=headers, json=payload)
     
     return response.json()["choices"][0]["message"]["content"]
@@ -159,6 +147,19 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
 
     researcher_agents_list = ", ".join([source.get("name", "") or source.get("index", "") for source in data_sources])
 
+    researcher = create_agent(
+        f"Researcher",
+        f"""I am a Researcher. I am an expert for these data sources: {researcher_agents_list}. I will investigate and research any questions regarding this specific data source. I will always use the search feature to find the information I need.  
+
+        I may get information from other researchers but I must always use the search feature to find the information I need, specifically to my expertise and data source.
+
+        Through the search feature, I am querying a semantic search engine so it's good to have long, detailed & descriptive sentences. I can try out to rephrase your questions to get more information.
+
+        I do not use any common knowledge, I always use the search feature to find the information I need.
+
+        I will make sure to detail your search queries as much as possible.""",
+        llm_config
+    )
 
     for source in data_sources:
         is_restricted = source.get("isRestricted", True)
@@ -175,25 +176,6 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
         index_name = source.get("name", "") or source.get("index", "")
 
 
-        researcher = create_agent(
-            f"{index_name}Researcher",
-            f"""I am a Researcher. I am an expert for {index_name}. I will investigate and research any questions regarding this specific data source. I will always use the search feature to find the information I need.  
-
-            I may get information from other researchers but I must always use the search feature to find the information I need, specifically to my expertise and data source.
-
-            My data source is: {index_name}
-
-            {source['description']}
-
-            Through the search feature, I am querying a semantic search engine so it's good to have long, detailed & descriptive sentences. I can try out to rephrase your questions to get more information.
-
-            I do not use any common knowledge, I always use the search feature to find the information I need.
-
-            I will make sure to detail your search queries as much as possible.""",
-            llm_config
-        )
-        researchers.append(researcher)
-
         def create_lookup_function(index: str) -> Callable[[Annotated[str, f"Use this function to search for information on the data source: {index_name}"]], str]:
             def lookup_information(question: Annotated[str, f"Use this function to search for information on the data source: {index_name}"]) -> str:
                 return search(question, index)
@@ -209,11 +191,13 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
         user_proxy.register_for_execution(
             name=f"lookup_{index_name}"
         )(lookup_function)
+        
+
 
     reviewer = create_reviewer_agent(llm_config, single_data_source=(len(data_sources) == 1), list_of_researchers=researcher_agents_list)
 
     groupchat = GroupChat(
-        agents=[user_proxy, reviewer] + researchers,
+        agents=[user_proxy, reviewer, researcher],
         messages=[],
         max_round=max_rounds,
         speaker_selection_method="round_robin",

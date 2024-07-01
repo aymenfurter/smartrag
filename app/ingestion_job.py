@@ -76,7 +76,7 @@ def check_job_status(url, headers):
             else:
                 time.sleep(5)
                 
-                if time.time() - start_time > 240: 
+                if time.time() - start_time > 480: 
                     return "timeout"
         else:
             return "error"
