@@ -15,6 +15,7 @@ from .research import research_with_data
 from .chat_service import chat_with_data, refine_message
 from .index_manager import create_index_manager, ContainerNameTooLongError, IndexConfig
 from .utils import easyauth_enabled
+from .ask import AskService 
 
 def are_operations_restricted():
     return os.getenv('RESTRICT_OPERATIONS', 'false').lower() == 'true'
@@ -37,7 +38,11 @@ class RouteConfigurator:
         self._add_chat_routes()
         self._add_pdf_route()
         self._add_config_route()
+        self._add_ask_route()
         return self.app
+
+    def _add_ask_route(self):
+        self.app.route('/ask', methods=['POST'])(self._handle_ask)
 
     def _add_config_route(self):
         self.app.route('/config', methods=['GET'])(self._get_config)
@@ -60,6 +65,13 @@ class RouteConfigurator:
 
     def _add_pdf_route(self):
         self.app.route('/pdf/<index_name>/<path:filename>', methods=['GET'])(self._get_pdf)
+
+    def _handle_ask(self):
+        user_id = get_user_id(request)
+        data = request.json
+        ask_service = self._get_ask_service()
+        response, status_code = ask_service.ask_question(data, user_id)
+        return jsonify(response), status_code
 
     def _get_indexes(self) -> Tuple[Response, int]:
         user_id = get_user_id(request)
@@ -265,6 +277,9 @@ class RouteConfigurator:
             return jsonify({"error": "Index name must be max 10 characters and lowercase"}), 400
         
         return IndexConfig(user_id, index_name, is_restricted)
+    
+    def _get_ask_service(self):
+        return AskService(self.blob_service)
 
     def _get_index_manager(self, user_id: str, index_name: str, is_restricted: bool):
         try:

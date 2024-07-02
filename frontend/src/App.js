@@ -4,9 +4,9 @@ import Header from './components/Header';
 import ChatSection from './components/ChatSection';
 import UploadSection from './components/UploadSection';
 import ResearchSection from './components/ResearchSection';
+import AskSection from './components/AskSection';
 import IndexRibbon from './components/IndexRibbon';
 import ConfigProvider from './components/ConfigContext';
-
 
 const Container = styled.div`
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -22,7 +22,6 @@ const Container = styled.div`
   flex-direction: column;
   transition: all 0.3s ease;
 `;
-
 
 const MainContent = styled.div`
   display: flex;
@@ -51,6 +50,7 @@ const LoadingIndicator = styled.div`
   font-size: 18px;
   color: #666;
 `;
+
 function App({ toggleTheme, isDarkMode }) {
   const [activeSection, setActiveSection] = useState('chat');
   const [indexes, setIndexes] = useState([]);
@@ -116,6 +116,7 @@ function App({ toggleTheme, isDarkMode }) {
     <ConfigProvider>
       <Container>
         <Header 
+          activeSection={activeSection}
           setActiveSection={setActiveSection} 
           toggleTheme={toggleTheme} 
           isDarkMode={isDarkMode}
@@ -142,6 +143,12 @@ function App({ toggleTheme, isDarkMode }) {
                     indexName={selectedIndex[0]} 
                     isRestricted={selectedIndex[1]} 
                     onStartResearch={handleStartResearch}
+                  />
+                )}
+                {activeSection === 'ask' && (
+                  <AskSection 
+                    indexName={selectedIndex[0]} 
+                    isRestricted={selectedIndex[1]}
                   />
                 )}
                 {activeSection === 'upload' && (

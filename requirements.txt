@@ -11,3 +11,5 @@ flask-cors
 pyautogen
 pytest
 opentelemetry-instrumentation-flask
+langchain
+langchain-openai

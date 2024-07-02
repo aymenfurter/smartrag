@@ -1,7 +1,7 @@
 import React from 'react';
 import styled, { keyframes } from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faComments, faUpload, faMagnifyingGlass, faTrash, faSun, faMoon } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faUpload, faMagnifyingGlass, faTrash, faSun, faMoon, faQuestion } from '@fortawesome/free-solid-svg-icons';
 import logo from './logo.png'; 
 import { ConfigContext } from './ConfigContext';
 import { useContext } from 'react';
@@ -123,6 +123,7 @@ function Header({ activeSection, setActiveSection, toggleTheme, isDarkMode }) {
 
   const navItems = [
     { icon: faComments, text: 'Chat', section: 'chat' },
+    { icon: faQuestion, text: 'Ask', section: 'ask' },
     ...(!operationsRestricted ? [
       { icon: faUpload, text: 'Upload', section: 'upload' },
     ] : []),
