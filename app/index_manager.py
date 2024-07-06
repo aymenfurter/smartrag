@@ -17,6 +17,7 @@ class IndexManager:
     MAX_CONTAINER_NAME_LENGTH = 63
     INGESTION_SUFFIX = "-ingestion"
     REFERENCE_SUFFIX = "-reference"
+    LZ_SUFFIX = "-lz" 
 
     def __init__(self, config: IndexConfig):
         self.config = config
@@ -33,11 +34,11 @@ class IndexManager:
         full_name = f"{prefix}{self.config.index_name}"
         sanitized_name = self.sanitize_container_name(full_name)
         
-        if len(sanitized_name) > self.MAX_CONTAINER_NAME_LENGTH - len(self.INGESTION_SUFFIX):
+        max_length = self.MAX_CONTAINER_NAME_LENGTH - max(len(self.INGESTION_SUFFIX), len(self.REFERENCE_SUFFIX), len(self.LZ_SUFFIX))
+        if len(sanitized_name) > max_length:
             raise ContainerNameTooLongError(
                 f"The combined length of user_id and index_name is too long. "
-                f"It must be at most {self.MAX_CONTAINER_NAME_LENGTH - len(self.INGESTION_SUFFIX)} "
-                "characters after sanitization."
+                f"It must be at most {max_length} characters after sanitization."
             )
         
         return sanitized_name
@@ -49,6 +50,10 @@ class IndexManager:
     def get_reference_container(self) -> str:
         """Returns the name of the reference container."""
         return f"{self.base_container_name}{self.REFERENCE_SUFFIX}"
+
+    def get_lz_container(self) -> str:
+        """Returns the name of the landing zone container."""
+        return f"{self.base_container_name}{self.LZ_SUFFIX}"
 
     def get_search_index_name(self) -> str:
         """Returns the name of the search index."""
@@ -71,16 +76,10 @@ class IndexManager:
         - Collapse multiple consecutive hyphens into a single hyphen
         - Truncate to 63 characters
         """
-        # Convert to lowercase and replace invalid characters with hyphens
         sanitized = re.sub(r'[^a-z0-9-]', '-', name.lower())
-        
-        # Remove leading and trailing hyphens
         sanitized = sanitized.strip('-')
-        
-        # Collapse multiple consecutive hyphens into a single hyphen
         sanitized = re.sub(r'-+', '-', sanitized)
         
-        # Truncate to 63 characters
         return sanitized[:63]
 
     @classmethod
@@ -88,18 +87,19 @@ class IndexManager:
         """Create container names for the index and return their names."""
         config = IndexConfig(user_id, index_name, is_restricted)
         manager = cls(config)
-        return [manager.get_ingestion_container(), manager.get_reference_container()]
+        return [manager.get_ingestion_container(), manager.get_reference_container(), manager.get_lz_container()]
 
     @classmethod
     def parse_container_name(cls, container_name: str) -> Tuple[str, bool]:
         """Parse a container name to extract index name and restricted status."""
-        if container_name.endswith(cls.INGESTION_SUFFIX):
-            base_name = container_name[:-len(cls.INGESTION_SUFFIX)]
-            if base_name.startswith("open-"):
-                return base_name[5:], False
-            else:
-                user_id, index_name = base_name.rsplit("-", 1)
-                return index_name, True
+        for suffix in [cls.INGESTION_SUFFIX, cls.REFERENCE_SUFFIX, cls.LZ_SUFFIX]:
+            if container_name.endswith(suffix):
+                base_name = container_name[:-len(suffix)]
+                if base_name.startswith("open-"):
+                    return base_name[5:], False
+                else:
+                    user_id, index_name = base_name.rsplit("-", 1)
+                    return index_name, True
         return "", False
 
 def create_index_manager(user_id: str, index_name: str, is_restricted: bool) -> IndexManager:
