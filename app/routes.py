@@ -193,12 +193,10 @@ class RouteConfigurator:
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-
     def _research(self):
         data = request.json
         user_id = get_user_id(request)
         return Response(research_with_data(data, user_id), content_type='text/event-stream')
-
 
     def _delete_file(self, index_name: str, filename: str):
         if self.operations_restricted:
@@ -268,7 +266,7 @@ class RouteConfigurator:
         data = request.json
         return self.refine_service(data, user_id)
 
-    def _get_pdf(self, index_name: str, filename: str) -> Tuple[Response, int]:
+    def _get_pdf(self, index_name: str, filename: str):
         user_id = get_user_id(request)
         is_restricted = request.args.get('is_restricted', 'true').lower() == 'true'
         
@@ -283,11 +281,9 @@ class RouteConfigurator:
             page_number = page_info.split('.')[0].replace('Page', '')
             pdf_filename = f"{base_filename}___Page{page_number}.pdf"
 
-            blob_service_client = self.blob_service
-            container_client = blob_service_client.get_container_client(container_name)
-            blob_client = container_client.get_blob_client(pdf_filename)
-
-            blob_data = blob_client.download_blob().readall()
+            blob_url = get_blob_url(container_name, pdf_filename, self.blob_service)
+            blob_data = self.blob_service.get_blob_client_from_url(blob_url).download_blob().readall()
+            
             return send_file(
                 BytesIO(blob_data),
                 mimetype='application/pdf',

@@ -27,12 +27,13 @@ class TestRouteConfigurator(unittest.TestCase):
         socketio = SocketIO(self.app, cors_allowed_origins="*")
         self.route_configurator = RouteConfigurator(
             self.app,
+            socketio=socketio,
             blob_service=self.mock_blob_service,
             ingestion_job=self.mock_ingestion_job,
             research=self.mock_research,
             chat_service=self.mock_chat_service
         )
-        self.route_configurator.configure_routes(socketio)
+        self.route_configurator.configure_routes()
 
     @patch('app.routes.get_user_id')
     @patch('app.routes.list_indexes')
