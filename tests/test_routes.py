@@ -6,6 +6,7 @@ from werkzeug.datastructures import FileStorage
 from io import BytesIO
 from app.routes import RouteConfigurator, IndexConfig
 from app.index_manager import ContainerNameTooLongError
+from flask_socketio import SocketIO
 
 class TestRouteConfigurator(unittest.TestCase):
 
@@ -23,7 +24,7 @@ class TestRouteConfigurator(unittest.TestCase):
         self.mock_ingestion_job = MagicMock()
         self.mock_research = MagicMock()
         self.mock_chat_service = MagicMock()
-
+        socketio = SocketIO(self.app, cors_allowed_origins="*")
         self.route_configurator = RouteConfigurator(
             self.app,
             blob_service=self.mock_blob_service,
@@ -31,7 +32,7 @@ class TestRouteConfigurator(unittest.TestCase):
             research=self.mock_research,
             chat_service=self.mock_chat_service
         )
-        self.route_configurator.configure_routes()
+        self.route_configurator.configure_routes(socketio)
 
     @patch('app.routes.get_user_id')
     @patch('app.routes.list_indexes')
