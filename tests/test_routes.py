@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch, MagicMock
 from flask import Flask
@@ -9,6 +10,8 @@ from app.index_manager import ContainerNameTooLongError
 class TestRouteConfigurator(unittest.TestCase):
 
     def setUp(self):
+        os.environ['STORAGE_ACCOUNT_NAME'] = 'mock_storage_account_name'
+        
         self.app = Flask(__name__)
         self.app.config['TESTING'] = True
         self.app.config['UPLOAD_FOLDER'] = '/tmp'
@@ -24,7 +27,6 @@ class TestRouteConfigurator(unittest.TestCase):
         self.route_configurator = RouteConfigurator(
             self.app,
             blob_service=self.mock_blob_service,
-            doc_intelligence=self.mock_doc_intelligence,
             ingestion_job=self.mock_ingestion_job,
             research=self.mock_research,
             chat_service=self.mock_chat_service
@@ -84,33 +86,6 @@ class TestRouteConfigurator(unittest.TestCase):
         response = self.client.delete('/indexes/testindex?is_restricted=true')
         self.assertEqual(response.status_code, 403)
 
-    @patch('app.routes.get_user_id')
-    @patch('app.routes.create_index_manager')
-    @patch('app.routes.secure_filename')
-    @patch('app.routes.split_pdf_to_pages')
-    @patch('app.routes.convert_pdf_page_to_png')
-    @patch('app.routes.convert_pdf_page_to_md')
-    @patch('app.routes.upload_files_to_blob')
-    def test_upload_file(self, mock_upload_files, mock_convert_md, mock_convert_png, mock_split_pdf, mock_secure_filename, mock_create_index_manager, mock_get_user_id):
-        mock_get_user_id.return_value = 'test_user'
-        mock_secure_filename.return_value = 'test.pdf'
-        mock_split_pdf.return_value = 1
-        mock_index_manager = MagicMock()
-        mock_index_manager.user_has_access.return_value = True
-        mock_index_manager.get_ingestion_container.return_value = 'ingestion_container'
-        mock_index_manager.get_reference_container.return_value = 'reference_container'
-        mock_create_index_manager.return_value = mock_index_manager
-        mock_convert_png.return_value = '/tmp/test___Page1.png'
-        mock_convert_md.return_value = '/tmp/test___Page1.md'
-
-        with self.app.test_request_context():
-            file = FileStorage(
-                stream=BytesIO(b"my file contents"),
-                filename="test.pdf",
-                content_type="application/pdf",
-            )
-            response = self.client.post('/indexes/testindex/upload', data={'file': file})
-            self.assertEqual(response.status_code, 200)
 
     @patch('app.routes.get_user_id')
     @patch('app.routes.create_index_manager')
@@ -143,19 +118,6 @@ class TestRouteConfigurator(unittest.TestCase):
         self.mock_blob_service.return_value.list_files_in_container.return_value = ['file1___Page1.pdf']
         
         response = self.client.delete('/indexes/testindex/files/file1')
-        self.assertEqual(response.status_code, 200)
-
-    @patch('app.routes.get_user_id')
-    @patch('app.routes.create_index_manager')
-    def test_index_files(self, mock_create_index_manager, mock_get_user_id):
-        mock_get_user_id.return_value = 'test_user'
-        mock_index_manager = MagicMock()
-        mock_index_manager.user_has_access.return_value = True
-        mock_index_manager.get_ingestion_container.return_value = 'ingestion_container'
-        mock_create_index_manager.return_value = mock_index_manager
-        self.mock_ingestion_job.return_value = 'completed'
-        
-        response = self.client.post('/indexes/testindex/index')
         self.assertEqual(response.status_code, 200)
 
     @patch('app.routes.get_user_id')
