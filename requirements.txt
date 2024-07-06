@@ -2,6 +2,7 @@ flask
 python-dotenv
 azure-identity
 azure-storage-blob
+azure-storage-queue
 PyPDF2
 pdf2image
 Pillow
