@@ -14,3 +14,5 @@ pytest
 opentelemetry-instrumentation-flask
 langchain
 langchain-openai
+tenacity
+flask-socketio

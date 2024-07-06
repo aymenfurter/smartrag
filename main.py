@@ -1,16 +1,19 @@
 import os
 from flask import Flask, send_from_directory
-from dotenv import load_dotenv
+from flask_socketio import SocketIO
 from flask_cors import CORS
 from pathlib import Path
-from app.routes import configure_routes 
+from dotenv import load_dotenv
+from app.routes import configure_routes
 import threading
 from app.queue_processor import process_queue_messages
 
 load_dotenv()
 
 app = Flask(__name__, static_folder='static', static_url_path='')
-CORS(app) 
+CORS(app)
+
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 UPLOAD_FOLDER = Path('/tmp/uploads')
 PROCESSED_FOLDER = Path('/tmp/processed')
@@ -19,7 +22,7 @@ app.config['PROCESSED_FOLDER'] = str(PROCESSED_FOLDER)
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 PROCESSED_FOLDER.mkdir(parents=True, exist_ok=True)
 
-configure_routes(app)
+configure_routes(app, socketio)
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -36,4 +39,4 @@ if __name__ == '__main__':
     queue_processor_thread = threading.Thread(target=start_queue_processor, daemon=True)
     queue_processor_thread.start()
 
-    app.run(host='0.0.0.0')
+    socketio.run(app, host='0.0.0.0', debug=True, use_reloader=False)

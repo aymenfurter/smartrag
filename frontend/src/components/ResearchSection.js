@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import styled, { keyframes } from 'styled-components';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import styled, { keyframes, css } from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faMinus, faCog, faChevronDown, faChevronUp, faSearch } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faMinus, faCog, faChevronDown, faChevronUp, faSearch, faSpinner, faFile, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import { formatMessage } from './ChatSection';
 
 const fadeIn = keyframes`
@@ -14,6 +14,17 @@ const slideIn = keyframes`
   to { transform: translateY(0); opacity: 1; }
 `;
 
+const pulse = keyframes`
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+`;
+
+const rotate = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
 const ResearchContainer = styled.div`
   padding: 20px;
   background-color: ${props => props.theme.backgroundColor};
@@ -21,17 +32,6 @@ const ResearchContainer = styled.div`
   margin-bottom: 20px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   animation: ${fadeIn} 0.5s ease-out;
-`;
-
-const Title = styled.h2`
-  color: ${props => props.theme.titleColor};
-  font-size: 24px;
-  margin-bottom: 10px;
-`;
-
-const Subtitle = styled.p`
-  color: ${props => props.theme.subtitleColor};
-  margin-bottom: 20px;
 `;
 
 const Form = styled.form`
@@ -138,6 +138,7 @@ const ResultsContainer = styled.div`
   background-color: ${props => props.theme.cardBackground};
   border-radius: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  animation: ${slideIn} 0.5s ease-out;
 
   a {
     color: ${props => props.theme.primaryButtonColor};
@@ -156,13 +157,8 @@ const LoadingSpinner = styled.div`
   border-radius: 50%;
   width: 30px;
   height: 30px;
-  animation: spin 1s linear infinite;
+  animation: ${rotate} 1s linear infinite;
   margin: 20px auto;
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
 `;
 
 const SliderContainer = styled.div`
@@ -196,6 +192,7 @@ const Message = styled.div`
   border-radius: 10px;
   background-color: ${props => props.role === 'assistant' ? props.theme.focusBorderColor : props.theme.inputBackground};
   color: ${props => props.role === 'assistant' ? props.theme.disabledButtonText : props.theme.messageText};
+  animation: ${slideIn} 0.3s ease-out;
 `;
 
 const ShowDetailsButton = styled(Button)`
@@ -239,6 +236,30 @@ const CloseButton = styled(Button)`
   margin-bottom: 10px;
 `;
 
+const UpdateContainer = styled.div`
+  background-color: ${props => props.theme.updateBackground};
+  color: ${props => props.theme.updateText};
+  padding: 10px;
+  border-radius: 5px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  animation: ${slideIn} 0.3s ease-out, ${pulse} 0.5s ease-in-out;
+`;
+
+const UpdateIcon = styled(FontAwesomeIcon)`
+  margin-right: 10px;
+  font-size: 18px;
+`;
+
+const SearchHighlight = styled.span`
+  background-color: ${props => props.theme.highlightBackground};
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: bold;
+  animation: ${pulse} 0.5s ease-in-out;
+`;
+
 function ResearchSection({ indexes, initialQuestion = '', initialIndex = null }) {
   const [question, setQuestion] = useState(initialQuestion);
   const [dataSources, setDataSources] = useState([
@@ -252,6 +273,8 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
   const [showDetails, setShowDetails] = useState(false);
   const [conversation, setConversation] = useState([]);
   const [pdfPreview, setPDFPreview] = useState(null);
+  const [updates, setUpdates] = useState([]);
+  const updatesEndRef = useRef(null);
 
   useEffect(() => {
     if (initialQuestion) {
@@ -261,6 +284,12 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
       setDataSources([{ index: initialIndex[0], name: '', description: '', isExpanded: false, isRestricted: initialIndex[1] }]);
     }
   }, [initialQuestion, initialIndex]);
+
+  useEffect(() => {
+    if (updatesEndRef.current) {
+      updatesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [updates]);
 
   const handleAddDataSource = () => {
     setDataSources([...dataSources, { index: '', name: '', description: '', isExpanded: false, isRestricted: true }]);
@@ -296,6 +325,7 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
     setIsResearching(true);
     setResults('');
     setConversation([]);
+    setUpdates([]);
 
     try {
       const response = await fetch('/research', {
@@ -321,20 +351,47 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value);
-        const messages = chunk.split('\n').filter(Boolean).map(JSON.parse);
-        messages.forEach(message => {
-          if (message.final_conclusion) {
-            setResults(message.final_conclusion);
-          } else {
-            setConversation(prev => [...prev, message]);
+        const events = chunk.split('\n\n').filter(Boolean);
+        
+        for (const event of events) {
+          if (event.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(event.slice(6));
+              handleUpdate(data);
+            } catch (error) {
+              console.error('Error parsing event:', error);
+            } 
           }
-        });
+        }
       }
     } catch (error) {
       console.error('Error during research:', error);
       setResults('An error occurred during research. Please try again.');
     } finally {
       setIsResearching(false);
+    }
+  };
+
+  const handleUpdate = (data) => {
+    switch (data.type) {
+      case 'search':
+        setUpdates(prev => [...prev, { type: 'search', content: `Searching in ${data.index}: "${data.query}"` }]);
+        break;
+      case 'search_complete':
+        setUpdates(prev => [...prev, { type: 'search_complete', content: `Search complete in ${data.index}` }]);
+        break;
+      case 'message':
+        setConversation(prev => [...prev, data.content]);
+        break;
+      case 'status':
+        setUpdates(prev => [...prev, { type: 'status', content: data.content }]);
+        break;
+      case 'final_conclusion':
+        setResults(data.content);
+        setIsResearching(false);
+        break;
+      default:
+        console.log('Unknown update type:', data.type);
     }
   };
 
@@ -410,6 +467,34 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
     );
   };
 
+  const renderUpdates = () => {
+    return updates.map((update, index) => (
+      <UpdateContainer key={index}>
+        {update.type === 'search' && (
+          <>
+            <UpdateIcon icon={faSearch} />
+            <div>
+              {update.content.split('"')[0]}
+              <SearchHighlight>"{update.content.split('"')[1]}"</SearchHighlight>
+            </div>
+          </>
+        )}
+        {update.type === 'search_complete' && (
+          <>
+            <UpdateIcon icon={faFile} />
+            <div>{update.content}</div>
+          </>
+        )}
+        {update.type === 'status' && (
+          <>
+            <UpdateIcon icon={faSpinner} spin />
+            <div>{update.content}</div>
+          </>
+        )}
+      </UpdateContainer>
+    ));
+  };
+
   return (
     <ResearchContainer>
       <Form onSubmit={handleSubmit}>
@@ -450,7 +535,7 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
                 value={source.name}
                 onChange={(e) => handleDataSourceChange(index, 'name', e.target.value)}
                 placeholder="Custom name for this data source"
-                />
+              />
               <Input
                 type="text"
                 value={source.description}
@@ -472,13 +557,19 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
             value={maxRounds}
             onChange={(e) => setMaxRounds(parseInt(e.target.value))}
           />
-          <span>Estimated time: {maxRounds} seconds</span>
+          <span>Estimated time: {maxRounds*6} seconds</span>
         </SliderContainer>
         <Button type="submit" disabled={isResearching}>
           Start Research
         </Button>
       </Form>
-      {isResearching && <LoadingSpinner />}
+      {isResearching && (
+        <>
+          <LoadingSpinner />
+          {renderUpdates()}
+          <div ref={updatesEndRef} />
+        </>
+      )}
       {renderResults()}
       {pdfPreview && (
         <PDFPreviewContainer>

@@ -1,11 +1,15 @@
 import json
-from typing import List, Dict, Any, Callable, Annotated
-from flask import jsonify, Response, stream_with_context
-from autogen import AssistantAgent, UserProxyAgent, GroupChat, GroupChatManager
+import re
+from typing import Dict, Any, Callable, Annotated, Generator, Union
+from flask import Response
+from autogen import AssistantAgent, UserProxyAgent, GroupChat, GroupChatManager 
 from .azure_openai import create_payload, create_data_source, get_openai_config
 from .index_manager import create_index_manager, ContainerNameTooLongError
 import time
 import requests
+
+class RateLimitException(Exception):
+    pass
 
 def create_agent(name: str, system_message: str, llm_config: Dict[str, Any]) -> AssistantAgent:
     """Create an AssistantAgent with the given parameters."""
@@ -20,7 +24,7 @@ def create_reviewer_agent(llm_config: Dict[str, Any], list_of_researchers: str, 
     system_message = (
         "I am Reviewer. I review the research and drive conclusions. "
         "Once I am done, I will ask you to terminate the conversation.\n\n"
-        "My job is to ask questions and guide the research to find the information I need "
+        "My job is to ask questions and guide the research to find the information I need. I always ask 10 questions at a time to get the information I need. "
         "and combine it into a final conclusion.\n\n"
         "I will make sure to ask follow-up questions to get the full picture.\n\n"
         "Only once I have all the information I need, I will ask you to terminate the conversation.\n\n"
@@ -44,10 +48,22 @@ def create_user_proxy() -> UserProxyAgent:
         human_input_mode="NEVER",
         code_execution_config=False,
     )
+def retry_request(func):
+    def wrapper(*args, **kwargs):
+        attempts = 0
+        while attempts < 10:
+            try:
+                return func(*args, **kwargs)
+            except RateLimitException:
+                attempts += 1
+                sleep_time = min(60, max(4, 2 ** (attempts - 1)))
+                time.sleep(sleep_time)
+        raise RateLimitException("Max retry attempts reached")
+    return wrapper
 
+@retry_request
 def search(query: str, index: str) -> str:
     """Perform a search query on the given index."""
-
     config = get_openai_config()
     url = f"{config['OPENAI_ENDPOINT']}/openai/deployments/{config['AZURE_OPENAI_DEPLOYMENT_ID']}/chat/completions?api-version=2024-02-15-preview"
     headers = {
@@ -64,15 +80,7 @@ def search(query: str, index: str) -> str:
     response = requests.post(url, headers=headers, json=payload)
 
     if response.status_code == 429:
-        retry_after = int(response.headers.get("Retry-After", 5))
-        time.sleep(retry_after*2)
-        response = requests.post(url, headers=headers, json=payload)
-    
-    if "choices" not in response.json():
-        if response.status_code == 429:
-            raise Exception("ERROR: Rate limit exceeded. Try again later.")
-        raise Exception("FATAL ERROR: No response from OpenAI API. TERMINATE.")
-
+        raise RateLimitException("Rate limit reached")
 
     content = response.json()["choices"][0]["message"]["content"]
     citations = response.json()["choices"][0]["message"].get("context", {}).get("citations", [])
@@ -84,6 +92,7 @@ def search(query: str, index: str) -> str:
 
     return content
 
+@retry_request
 def generate_final_conclusion(chat_result: Any) -> str:
     """Generate a final conclusion based on the chat history."""
     config = get_openai_config()
@@ -117,13 +126,19 @@ def generate_final_conclusion(chat_result: Any) -> str:
     response = requests.post(url, headers=headers, json=payload)
 
     if response.status_code == 429:
-        retry_after = int(response.headers.get("Retry-After", 5))
-        time.sleep(retry_after*3)
-        response = requests.post(url, headers=headers, json=payload)
+        raise RateLimitException("Rate limit reached")
     
     return response.json()["choices"][0]["message"]["content"]
 
-def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
+def extract_citations(text):
+    citations = []
+    citation_pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+    matches = re.findall(citation_pattern, text)
+    for match in matches:
+        citations.append({'title': match[0], 'url': match[1]})
+    return citations
+
+def research_with_data(data: Dict[str, Any], user_id: str) -> Generator[str, None, None]:
     """Perform research based on the provided data and user ID."""
     config = get_openai_config()
     question = data.get("question")
@@ -142,6 +157,9 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
         "config_list": config_list,
     }
 
+    def yield_update(update_type, content):
+        yield f"data: {json.dumps({'type': update_type, 'content': content})}\n\n"
+
     user_proxy = create_user_proxy()
     researchers = []
 
@@ -151,10 +169,8 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
         f"Researcher",
         f"""I am a Researcher. I am an expert for these data sources: {researcher_agents_list}. I will investigate and research any questions regarding this specific data source. I will always use the search feature to find the information I need.  
 
-        I may get information from other researchers but I must always use the search feature to find the information I need, specifically to my expertise and data source.
-
-        Through the search feature, I am querying a semantic search engine so it's good to have long, detailed & descriptive sentences. I can try out to rephrase your questions to get more information.
-
+        Through the search feature, I am querying a semantic search engine so it's good to have long, detailed & descriptive sentences. I must always break it down in 5-10 search queries / question to get the information I need. I will never just search for the question directly.
+ 
         I do not use any common knowledge, I always use the search feature to find the information I need.
 
         I will make sure to detail your search queries as much as possible.""",
@@ -167,10 +183,12 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
         try:
             index_manager = create_index_manager(user_id, source['index'], is_restricted)
         except ContainerNameTooLongError as e:
-            return jsonify({"error": str(e)}), 400
+            yield from yield_update('error', str(e))
+            return
 
         if not index_manager.user_has_access():
-            return jsonify({"error": f"Unauthorized access to index: {source['index']}"}), 403
+            yield from yield_update('error', f'Unauthorized access to index: {source["index"]}')
+            return
 
         search_index = index_manager.get_search_index_name()
         index_name = source.get("name", "") or source.get("index", "")
@@ -192,9 +210,11 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
             name=f"lookup_{index_name}"
         )(lookup_function)
         
-
-
     reviewer = create_reviewer_agent(llm_config, single_data_source=(len(data_sources) == 1), list_of_researchers=researcher_agents_list)
+
+    # FIXME: messages emited via hook are not being yielded
+    reviewer.register_hook("process_message_before_send", build_on_message_hook(lambda sender, recipient, message: yield_update('message', message)))
+    researcher.register_hook("process_message_before_send", build_on_message_hook(lambda sender, recipient, message: yield_update('message', message)))
 
     groupchat = GroupChat(
         agents=[user_proxy, reviewer, researcher],
@@ -204,17 +224,33 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
     )
     manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
 
-    def stream_research():
-        chat_result = user_proxy.initiate_chat(
-            manager,
-            message=question,
-            max_rounds=max_rounds
-        )
+    yield from yield_update('research_start', {'question': question})
+    
+    chat_result = user_proxy.initiate_chat(
+        manager,
+        message=question,
+        max_rounds=max_rounds
+    )
 
-        for message in chat_result.chat_history:
-            yield json.dumps(message) + "\n"
+    for message in chat_result.chat_history:
+        yield from yield_update('message', message)
         
-        final_conclusion = generate_final_conclusion(chat_result)
-        yield json.dumps({"final_conclusion": final_conclusion}) + "\n"
+        citations = extract_citations(message.get('content', ''))
+        for citation in citations:
+            yield from yield_update('potential_source', {'title': citation['title'], 'url': citation['url']})
+    
+    yield from yield_update('status', 'Generating final conclusion...')
+    final_conclusion = generate_final_conclusion(chat_result)
+    yield from yield_update('final_conclusion', final_conclusion)
 
-    return Response(stream_with_context(stream_research()), content_type='application/x-ndjson')
+def build_on_message_hook(on_message: Callable[[str, str, Any], None]) -> Callable[[AssistantAgent, Union[Dict[str, Any], str], AssistantAgent, bool], Union[Dict[str, Any], str]]:
+    def send_message_hook(
+        sender: AssistantAgent,
+        message: Union[Dict[str, Any], str],
+        recipient: AssistantAgent,
+        silent: bool,
+    ) -> Union[Dict[str, Any], str]:
+        on_message(sender.name, recipient.name, message)
+        return message
+
+    return send_message_hook
