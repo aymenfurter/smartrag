@@ -1,13 +1,14 @@
 import unittest
 from unittest.mock import Mock, patch
-from azure.core.exceptions import ResourceExistsError
+from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from app import blob_service
-from app.index_manager import IndexManager, IndexConfig
+from app.index_manager import IndexManager, create_index_manager
 
 class TestBlobService(unittest.TestCase):
 
     def setUp(self):
         self.mock_blob_service_client = Mock()
+        self.mock_queue_client = Mock()
 
     def test_create_container(self):
         blob_service.create_container(self.mock_blob_service_client, "test-container")
@@ -15,33 +16,37 @@ class TestBlobService(unittest.TestCase):
 
     def test_create_container_already_exists(self):
         self.mock_blob_service_client.create_container.side_effect = ResourceExistsError
-        with patch('builtins.print') as mock_print:
+        with patch('builtins.print') as mock_print, patch('logging.info') as mock_logging_info:
             blob_service.create_container(self.mock_blob_service_client, "test-container")
-            mock_print.assert_called_once_with("Container 'test-container' already exists.")
+            mock_logging_info.assert_called_once_with("Container 'test-container' already exists.")
 
     def test_create_index_containers(self):
         result = blob_service.create_index_containers("user1", "index1", True, self.mock_blob_service_client)
-        expected = ["user1-index1-ingestion", "user1-index1-reference"]
+        expected = ["user1-index1-ingestion", "user1-index1-reference", "user1-index1-lz"]
         self.assertEqual(result, expected)
-        self.assertEqual(self.mock_blob_service_client.create_container.call_count, 2)
+        self.assertEqual(self.mock_blob_service_client.create_container.call_count, 3)
 
     @patch('app.blob_service.open')
-    def test_upload_files_to_blob(self, mock_open):
+    def test_upload_file_to_blob(self, mock_open):
         mock_container_client = Mock()
         self.mock_blob_service_client.get_container_client.return_value = mock_container_client
-        blob_service.upload_files_to_blob("test-container", ["file1.txt", "file2.txt"], self.mock_blob_service_client)
-        self.assertEqual(mock_container_client.upload_blob.call_count, 2)
+        blob_service.upload_file_to_blob("test-container", "file1.txt", "local/path/file1.txt", self.mock_blob_service_client)
+        self.mock_blob_service_client.get_blob_client.assert_called_once()
+        
 
     def test_list_files_in_container(self):
         mock_container_client = Mock()
         self.mock_blob_service_client.get_container_client.return_value = mock_container_client
         mock_blob1 = Mock()
-        mock_blob1.name = "file1.txt"
+        mock_blob1.name = "file1___page1.pdf"
         mock_blob2 = Mock()
-        mock_blob2.name = "file2.txt"
-        mock_container_client.list_blobs.return_value = [mock_blob1, mock_blob2]
+        mock_blob2.name = "file1___page2.pdf"
+        mock_blob3 = Mock()
+        mock_blob3.name = "file2___page1.pdf"
+        mock_container_client.list_blobs.return_value = [mock_blob1, mock_blob2, mock_blob3]
         result = blob_service.list_files_in_container("test-container", self.mock_blob_service_client)
-        self.assertEqual(result, ["file1.txt", "file2.txt"])
+        expected = [{'filename': 'file1', 'total_pages': 2}, {'filename': 'file2', 'total_pages': 1}]
+        self.assertEqual(result, expected)
 
     def test_delete_file_from_blob(self):
         mock_container_client = Mock()
@@ -68,8 +73,8 @@ class TestBlobService(unittest.TestCase):
 
     def test_delete_index(self):
         blob_service.delete_index("user1", "index1", True, self.mock_blob_service_client)
-        self.assertEqual(self.mock_blob_service_client.get_container_client.call_count, 2)
-        self.assertEqual(self.mock_blob_service_client.get_container_client.return_value.delete_container.call_count, 2)
+        self.assertEqual(self.mock_blob_service_client.get_container_client.call_count, 3)
+        self.assertEqual(self.mock_blob_service_client.get_container_client.return_value.delete_container.call_count, 3)
 
     def test_get_blob_url(self):
         mock_container_client = Mock()

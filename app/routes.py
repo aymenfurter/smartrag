@@ -1,36 +1,38 @@
-import os
-from typing import Dict, Any, Tuple
 from flask import Flask, request, jsonify, Response, send_file
 from werkzeug.utils import secure_filename
+import os
+import PyPDF2
 from io import BytesIO
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
 
-from .utils import split_pdf_to_pages, get_user_id
-from .pdf_processing import convert_pdf_page_to_png
-from .blob_service import upload_files_to_blob, create_index_containers, list_files_in_container, delete_file_from_blob, list_indexes, delete_index, initialize_blob_service
-from .doc_intelligence import convert_pdf_page_to_md
-from .ingestion_job import create_ingestion_job, delete_ingestion_index 
+from .utils import get_user_id
+from .blob_service import (
+    upload_file_to_lz, create_index_containers, list_files_in_container, 
+    delete_file_from_blob, list_indexes, delete_index, initialize_blob_service,
+    get_blob_url
+)
+from .queue_processor import queue_file_for_processing
+from .ingestion_job import create_ingestion_job, check_job_status, delete_ingestion_index
 from .research import research_with_data
 from .chat_service import chat_with_data, refine_message
 from .index_manager import create_index_manager, ContainerNameTooLongError, IndexConfig
 from .utils import easyauth_enabled
 from .ask import AskService 
+from .pdf_processing import get_pdf_page_count
 
 def are_operations_restricted():
     return os.getenv('RESTRICT_OPERATIONS', 'false').lower() == 'true'
 
 class RouteConfigurator:
-    def __init__(self, app: Flask, blob_service=None, doc_intelligence=None, ingestion_job=None, research=None, chat_service=None):
+    def __init__(self, app: Flask, blob_service=None, ingestion_job=None, research=None, chat_service=None):
         self.app = app
         self.blob_service = blob_service or initialize_blob_service()
-        self.doc_intelligence = doc_intelligence or convert_pdf_page_to_md
         self.ingestion_job = ingestion_job or create_ingestion_job
         self.research = research or research_with_data
         self.chat_service = chat_service or chat_with_data
         self.refine_service = refine_message
         self.operations_restricted = are_operations_restricted()
-
 
     def configure_routes(self) -> Flask:
         self._add_index_routes()
@@ -57,6 +59,8 @@ class RouteConfigurator:
         self.app.route('/indexes/<index_name>/files', methods=['GET'])(self._list_files)
         self.app.route('/indexes/<index_name>/files/<filename>', methods=['DELETE'])(self._delete_file)
         self.app.route('/indexes/<index_name>/index', methods=['POST'])(self._index_files)
+        self.app.route('/indexes/<index_name>/index/status', methods=['GET'])(self._check_index_status)
+
 
     def _add_chat_routes(self):
         self.app.route('/research', methods=['POST'])(self._research)
@@ -73,7 +77,7 @@ class RouteConfigurator:
         response, status_code = ask_service.ask_question(data, user_id)
         return jsonify(response), status_code
 
-    def _get_indexes(self) -> Tuple[Response, int]:
+    def _get_indexes(self):
         user_id = get_user_id(request)
         indexes = list_indexes(user_id)
         return jsonify({"indexes": indexes}), 200
@@ -81,7 +85,7 @@ class RouteConfigurator:
     def _get_config(self):
         return jsonify({"operationsRestricted": self.operations_restricted, "easyAuthEnabled": easyauth_enabled(request)}), 200
 
-    def _create_index(self) -> Tuple[Response, int]:
+    def _create_index(self):
         if self.operations_restricted:
             return jsonify({"error": "Operation not allowed"}), 403
 
@@ -108,7 +112,7 @@ class RouteConfigurator:
         )
         return jsonify({"message": "Index created successfully", "containers": containers}), 201
 
-    def _remove_index(self, index_name: str) -> Tuple[Response, int]:
+    def _remove_index(self, index_name: str):
         if self.operations_restricted:
             return jsonify({"error": "Operation not allowed"}), 403
 
@@ -127,7 +131,7 @@ class RouteConfigurator:
         delete_ingestion_index(index_manager.get_ingestion_container())
         return jsonify({"message": "Index deleted successfully"}), 200
 
-    def _upload_file(self, index_name: str) -> Tuple[Response, int]:
+    def _upload_file(self, index_name: str):
         if self.operations_restricted:
             return jsonify({"error": "Operation not allowed"}), 403
 
@@ -147,21 +151,30 @@ class RouteConfigurator:
             return jsonify({"error": "Invalid file name"}), 400
 
         filename = secure_filename(file.filename)
-        file_path = os.path.join(self.app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
+        
+        # Save file to memory
+        file_bytes = file.read()
+        file_buffer = BytesIO(file_bytes)
 
-        ingestion_container = index_manager.get_ingestion_container()
-        reference_container = index_manager.get_reference_container()
+        # Get number of pages
+        num_pages = get_pdf_page_count(file_buffer)
 
-        num_pages = split_pdf_to_pages(file_path, self.app.config['PROCESSED_FOLDER'], filename)
-        reference_file_paths, ingestion_file_paths = self._process_pdf_pages(filename, num_pages, is_multimodal)
+        # Reset buffer position
+        file_buffer.seek(0)
 
-        upload_files_to_blob(ingestion_container, ingestion_file_paths, self.blob_service)
-        upload_files_to_blob(reference_container, reference_file_paths, self.blob_service)
+        # Upload to landing zone
+        blob_url = upload_file_to_lz(file_buffer, filename, user_id, index_name, is_restricted, self.blob_service)
 
-        return jsonify({"message": "File uploaded and processed successfully"}), 200
+        # Queue the file for processing
+        queue_file_for_processing(filename, user_id, index_name, is_restricted, num_pages, blob_url, is_multimodal)
 
-    def _list_files(self, index_name: str) -> Tuple[Response, int]:
+        return jsonify({
+            "message": "File queued for processing",
+            "filename": filename,
+            "num_pages": num_pages
+        }), 202
+
+    def _list_files(self, index_name: str):
         user_id = get_user_id(request)
         is_restricted = request.args.get('is_restricted', 'true').lower() == 'true'
         
@@ -173,17 +186,16 @@ class RouteConfigurator:
         
         try:
             files = list_files_in_container(container_name, self.blob_service)
-            base_filenames = {filename.split('___')[0] for filename in files}
-            return jsonify({"files": list(base_filenames)}), 200
+            return jsonify({"files": files, "indexed_count": 0 }), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    def _research(self) -> Response:
+    def _research(self):
         data = request.json
         user_id = get_user_id(request)
         return self.research(data, user_id)
 
-    def _delete_file(self, index_name: str, filename: str) -> Tuple[Response, int]:
+    def _delete_file(self, index_name: str, filename: str):
         if self.operations_restricted:
             return jsonify({"error": "Operation not allowed"}), 403
 
@@ -196,19 +208,20 @@ class RouteConfigurator:
 
         ingestion_container = index_manager.get_ingestion_container()
         reference_container = index_manager.get_reference_container()
+        lz_container = index_manager.get_lz_container()
 
         try:
-            for container_name in [ingestion_container, reference_container]:
+            for container_name in [ingestion_container, reference_container, lz_container]:
                 file_list = list_files_in_container(container_name, self.blob_service)
-                files_to_delete = [f for f in file_list if f.startswith(f"{filename}___")]
+                files_to_delete = [f['filename'] for f in file_list if f['filename'].startswith(f"{filename}___") or f['filename'] == filename]
                 for file in files_to_delete:
                     delete_file_from_blob(container_name, file, self.blob_service)
             
-            return jsonify({"message": f"All pages of {filename} deleted successfully from both containers"}), 200
+            return jsonify({"message": f"All pages of {filename} deleted successfully from all containers"}), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    def _index_files(self, index_name: str) -> Tuple[Response, int]:
+    def _index_files(self, index_name: str):
         user_id = get_user_id(request)
         is_restricted = request.args.get('is_restricted', 'true').lower() == 'true'
         
@@ -219,22 +232,38 @@ class RouteConfigurator:
         ingestion_container = index_manager.get_ingestion_container()
 
         try:
-            status = self.ingestion_job(ingestion_container)
-            return jsonify({"message": f"Indexing job {status}"}), 200
+            result = create_ingestion_job(ingestion_container)
+            return jsonify(result), 202  
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    def _chat(self) -> Response:
+    def _check_index_status(self, index_name: str):
+        user_id = get_user_id(request)
+        is_restricted = request.args.get('is_restricted', 'true').lower() == 'true'
+        
+        index_manager = self._get_index_manager(user_id, index_name, is_restricted)
+        if isinstance(index_manager, tuple):
+            return index_manager
+
+        ingestion_container = index_manager.get_ingestion_container()
+
+        try:
+            result = check_job_status(ingestion_container)
+            return jsonify(result), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    def _chat(self):
         user_id = get_user_id(request)
         data = request.json
         return self.chat_service(data, user_id)
 
-    def _refine(self) -> Response:
+    def _refine(self):
         user_id = get_user_id(request)
         data = request.json
         return self.refine_service(data, user_id)
 
-    def _get_pdf(self, index_name: str, filename: str) -> Tuple[Response, int]:
+    def _get_pdf(self, index_name: str, filename: str):
         user_id = get_user_id(request)
         is_restricted = request.args.get('is_restricted', 'true').lower() == 'true'
         
@@ -249,11 +278,9 @@ class RouteConfigurator:
             page_number = page_info.split('.')[0].replace('Page', '')
             pdf_filename = f"{base_filename}___Page{page_number}.pdf"
 
-            blob_service_client = self.blob_service
-            container_client = blob_service_client.get_container_client(container_name)
-            blob_client = container_client.get_blob_client(pdf_filename)
-
-            blob_data = blob_client.download_blob().readall()
+            blob_url = get_blob_url(container_name, pdf_filename, self.blob_service)
+            blob_data = self.blob_service.get_blob_client_from_url(blob_url).download_blob().readall()
+            
             return send_file(
                 BytesIO(blob_data),
                 mimetype='application/pdf',
@@ -266,7 +293,7 @@ class RouteConfigurator:
             self.app.logger.error(f"Error retrieving PDF: {str(e)}")
             return jsonify({"error": f"Error retrieving PDF: {str(e)}"}), 500
 
-    def _validate_index_creation_data(self, data: Dict[str, Any], user_id: str) -> IndexConfig | Tuple[Response, int]:
+    def _validate_index_creation_data(self, data, user_id):
         index_name = data.get('name')
         is_restricted = data.get('is_restricted', True)
         
@@ -291,20 +318,6 @@ class RouteConfigurator:
             return jsonify({"error": "Unauthorized access"}), 403
 
         return index_manager
-
-    def _process_pdf_pages(self, filename: str, num_pages: int, is_multimodal: bool):
-        reference_file_paths = []
-        ingestion_file_paths = []
-
-        for i in range(num_pages):
-            page_pdf_path = os.path.join(self.app.config['PROCESSED_FOLDER'], f"{filename}___Page{i+1}.pdf")
-            reference_file_paths.append(page_pdf_path)
-            png_path = convert_pdf_page_to_png(page_pdf_path, i, self.app.config['PROCESSED_FOLDER'], filename)
-            reference_file_paths.append(png_path)
-            md_path = self.doc_intelligence(page_pdf_path, i, self.app.config['PROCESSED_FOLDER'], filename, is_multimodal)
-            ingestion_file_paths.append(md_path)
-
-        return reference_file_paths, ingestion_file_paths
 
 def configure_routes(app: Flask, **kwargs) -> Flask:
     route_configurator = RouteConfigurator(app, **kwargs)

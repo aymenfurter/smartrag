@@ -1,8 +1,9 @@
 import os
 import requests
 import time
+from typing import Dict, Any
 
-def create_ingestion_job(container_name):
+def create_ingestion_job(container_name: str) -> Dict[str, Any]:
     endpoint = os.getenv('OPENAI_ENDPOINT')
     api_version = '2024-05-01-preview'
     job_id = container_name
@@ -53,35 +54,45 @@ def create_ingestion_job(container_name):
         },
         "completionAction": 1 
     }
-
+    
     response = requests.put(url, headers=headers, json=payload)
     
     if response.status_code == 200:
-        job_status_url = f"{endpoint}/openai/ingestion/jobs/{job_id}/runs?api-version={api_version}"
-        return check_job_status(job_status_url, headers)
+        return {
+            "status": "initiated",
+            "job_id": job_id,
+            "message": "Indexing job initiated successfully"
+        }
     else:
         raise Exception(f"Failed to create ingestion job: {response.text}")
 
-def check_job_status(url, headers):
-    start_time = time.time()
-    while True:
-        response = requests.get(url, headers=headers)
-        
-        if response.status_code == 200:
-            job_status = response.json()
-            if response.text.find("succeeded") != -1:
-                return "completed"
-            if response.text.find("failed") != -1:
-                return "failed"
-            else:
-                time.sleep(5)
-                
-                if time.time() - start_time > 480: 
-                    return "timeout"
+def check_job_status(job_id: str) -> Dict[str, Any]:
+    endpoint = os.getenv('OPENAI_ENDPOINT')
+    api_version = '2024-05-01-preview'
+    api_key = os.getenv('AOAI_API_KEY')
+    
+    url = f"{endpoint}/openai/ingestion/jobs/{job_id}/runs?api-version={api_version}"
+    
+    headers = {
+        'api-key': api_key,
+        'Opc-Apim-Subscription-Key': api_key,
+        'Content-Type': 'application/json'
+    }
+    
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        job_status = response.json()
+        if "succeeded" in response.text:
+            return {"status": "completed", "message": "Indexing job completed successfully"}
+        elif "failed" in response.text:
+            return {"status": "failed", "message": "Indexing job failed"}
         else:
-            return "error"
+            return {"status": "in_progress", "message": "Indexing job is still in progress"}
+    else:
+        return {"status": "error", "message": f"Error checking job status: {response.text}"}
 
-def delete_ingestion_index(job_id):
+def delete_ingestion_index(job_id: str) -> Dict[str, Any]:
     endpoint = os.getenv('SEARCH_SERVICE_ENDPOINT')
     api_key = os.getenv('SEARCH_SERVICE_API_KEY')
     
@@ -93,4 +104,9 @@ def delete_ingestion_index(job_id):
         'Content-Type': 'application/json'
     }
     
-    requests.delete(url, headers=headers)
+    response = requests.delete(url, headers=headers)
+    
+    if response.status_code == 204:
+        return {"status": "success", "message": f"Ingestion index {job_id} deleted successfully"}
+    else:
+        return {"status": "error", "message": f"Failed to delete ingestion index: {response.text}"}

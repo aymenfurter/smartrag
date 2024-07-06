@@ -1,6 +1,8 @@
 import os
+from io import BytesIO
 import logging
 from pdf2image import convert_from_path
+from PyPDF2 import PdfReader
 
 def convert_pdf_page_to_png(pdf_path, page_num, output_dir, prefix):
     logging.debug(f"Converting PDF page {page_num + 1} to PNG: {pdf_path}")
@@ -16,3 +18,11 @@ def convert_pdf_page_to_png(pdf_path, page_num, output_dir, prefix):
         return output_filename
     else:
         raise ValueError(f"No images were generated for page {page_num + 1} of {pdf_path}")
+
+def get_pdf_page_count(pdf_bytes: BytesIO) -> int:
+    try:
+        reader = PdfReader(pdf_bytes)
+        return len(reader.pages)
+    except Exception as e:
+        logging.error(f"Error getting PDF page count: {str(e)}")
+        raise

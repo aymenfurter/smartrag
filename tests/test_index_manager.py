@@ -1,4 +1,7 @@
 import unittest
+
+from requests import patch
+from app.blob_service import create_index_containers
 from app.index_manager import IndexManager, IndexConfig, ContainerNameTooLongError, create_index_manager
 
 class TestIndexManager(unittest.TestCase):
@@ -71,12 +74,6 @@ class TestIndexManager(unittest.TestCase):
         for input_name, expected_output in test_cases:
             with self.subTest(input_name=input_name):
                 self.assertEqual(IndexManager.sanitize_container_name(input_name), expected_output)
-
-    def test_create_index_containers(self):
-        containers = IndexManager.create_index_containers("user1", "index1", True)
-        self.assertEqual(len(containers), 2)
-        self.assertEqual(containers[0], "user1-index1-ingestion")
-        self.assertEqual(containers[1], "user1-index1-reference")
 
     def test_parse_container_name_restricted(self):
         index_name, is_restricted = IndexManager.parse_container_name("user1-index1-ingestion")

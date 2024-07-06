@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 from pathlib import Path
 from app.routes import configure_routes 
+import threading
+from app.queue_processor import process_queue_messages
 
 load_dotenv()
 
@@ -27,5 +29,11 @@ def serve(path):
     else:
         return send_from_directory(app.static_folder, 'index.html')
 
+def start_queue_processor():
+    process_queue_messages()
+
 if __name__ == '__main__':
+    queue_processor_thread = threading.Thread(target=start_queue_processor, daemon=True)
+    queue_processor_thread.start()
+
     app.run(host='0.0.0.0')

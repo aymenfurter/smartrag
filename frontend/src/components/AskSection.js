@@ -183,7 +183,8 @@ function AskSection({ indexName, isRestricted }) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      setFiles(data.files || []);
+      const filenames = data.files.map(file => file.filename);
+      setFiles(filenames || []);
       if (data.files && data.files.length > 0) {
         setSelectedFile(data.files[0]);
       }
