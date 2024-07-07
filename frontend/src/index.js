@@ -20,6 +20,18 @@ const GlobalStyle = createGlobalStyle`
   * {
     box-sizing: border-box;
   }
+  
+  a {
+    color: ${props => props.theme.linkColor};
+    text-decoration: none;
+    position: relative;
+    transition: color 0.3s ease;
+
+    &:hover {
+      color: ${props => props.theme.linkHoverColor};
+    }
+
+  }
 `;
 
 const baseTheme = {
@@ -47,9 +59,6 @@ const lightTheme = {
 const darkTheme = {
   ...baseTheme,
   type: 'dark',
-  primaryColor: '#0078D7',
-  secondaryColor: '#00A6ED',
-  accentColor: '#33C3F0',
   primaryColor: '#4da6ff',
   secondaryColor: '#333333',
   textColor: '#ffffff',
@@ -61,6 +70,7 @@ const darkTheme = {
   scrollbarThumb: '#666666',
   scrollbarThumbHover: '#888888',
   modalOverlay: 'rgba(0, 0, 0, 0.7)',
+  accentColor: '#33C3F0',
 };
 
 const getThemeValues = (theme) => ({
@@ -120,6 +130,19 @@ const getThemeValues = (theme) => ({
   selectBackground: theme.type === 'light' ? theme.backgroundColor : theme.secondaryColor,
   selectText: theme.textColor, 
   selectBorder: theme.borderColor,
+
+  conclusionBackground: theme.type === 'light' ? '#f0f8ff' : '#2a2a2a',
+  eventLogBackground: theme.type === 'light' ? '#f9f9f9' : '#2a2a2a',
+  eventItemBackground: theme.type === 'light' ? '#ffffff' : '#333333',
+  eventItemBorder: theme.primaryColor,
+  highlightBackground: theme.type === 'light' ? '#fff3cd' : '#4d4d00',
+  tableRowHover: theme.type === 'light' ? '#f5f5f5' : '#333333',
+  linkHoverColor: theme.type === 'light' ? '#0056b3' : '#66b3ff',
+  linkUnderlineColor: theme.primaryColor,
+  paginationLinkColor: theme.primaryColor,
+  paginationBackground: theme.backgroundColor,
+  paginationActiveBackground: theme.primaryColor,
+  paginationHoverBackground: theme.type === 'light' ? '#e9ecef' : '#333333',
 });
 
 function ThemedApp() {

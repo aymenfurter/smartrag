@@ -1,5 +1,7 @@
 import json
 import re
+import threading
+import queue
 from typing import Dict, Any, Callable, Annotated, Generator, Union
 from flask import Response
 from autogen import AssistantAgent, UserProxyAgent, GroupChat, GroupChatManager 
@@ -28,9 +30,9 @@ def create_reviewer_agent(llm_config: Dict[str, Any], list_of_researchers: str, 
         "and combine it into a final conclusion.\n\n"
         "I will make sure to ask follow-up questions to get the full picture.\n\n"
         "Only once I have all the information I need, I will ask you to terminate the conversation.\n\n"
-        "Keep an eye on the referenced documents, if it looks like not the right documents were referenced, ask the researcher to reframe the question to find additional data sources.\n\n"
-        "Try follow-up questions in case you the answer looks incomplete.\n\n"
-        "Your researcher is: " + list_of_researchers + "\n\n"
+        "I will keep an eye on the referenced documents, if it looks like not the right documents were referenced, ask the researcher to reframe the question to find additional data sources.\n\n"
+        "I will use follow-up questions in case you the answer is incomplete (for instance if one data source is missing data).\n\n"
+        "My researcher is: " + list_of_researchers + "\n\n"
         "To terminate the conversation, I will write ONLY the string: TERMINATE"
     )
 
@@ -48,6 +50,7 @@ def create_user_proxy() -> UserProxyAgent:
         human_input_mode="NEVER",
         code_execution_config=False,
     )
+
 def retry_request(func):
     def wrapper(*args, **kwargs):
         attempts = 0
@@ -90,7 +93,7 @@ def search(query: str, index: str) -> str:
         formatted_citations += "\n".join([f"- [{citation['title']}]({citation['url']})" for citation in citations])
         content += formatted_citations
 
-    return content
+    return content, response.json()
 
 @retry_request
 def generate_final_conclusion(chat_result: Any) -> str:
@@ -106,6 +109,7 @@ def generate_final_conclusion(chat_result: Any) -> str:
         "- Key Insights\n"
         "- Final Conclusion\n"
         "- Relevant Citations and Sources (Please ALWAYS reference original URLs to the sources used in the research!)\n\n"
+        "- Do always reference the Page Number you find in the link of the source. (e.g. https://xxx.blob.core.windows.net/open-baloise-ingestion/myfile.pdf___Page101.md you would cite as MyFile (Page 101)\n"
         "Important:\n- DONT CHANGE ANY URL! Use original URLs (INCLUDING THE ___Pagexxx at the end!) like these: https://xxx.blob.core.windows.net/open-baloise-ingestion/myfile.pdf___Page101.md\n"
         "- Do not report on the process that was used, just conclude. \n"
         "- Do not come up with new information, just summarize the chat history. \n"
@@ -120,7 +124,8 @@ def generate_final_conclusion(chat_result: Any) -> str:
         {},
         {},
         [],
-        False
+        False,
+        2000
     )
 
     response = requests.post(url, headers=headers, json=payload)
@@ -128,7 +133,7 @@ def generate_final_conclusion(chat_result: Any) -> str:
     if response.status_code == 429:
         raise RateLimitException("Rate limit reached")
     
-    return response.json()["choices"][0]["message"]["content"]
+    return response.json()["choices"][0]["message"]["content"], response.json()
 
 def extract_citations(text):
     citations = []
@@ -142,7 +147,7 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Generator[str, Non
     """Perform research based on the provided data and user ID."""
     config = get_openai_config()
     question = data.get("question")
-    max_rounds = data.get("maxRounds", 20)
+    max_rounds = data.get("maxRounds", 10)
     data_sources = data.get("dataSources", [])
 
     config_list = [{
@@ -157,8 +162,11 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Generator[str, Non
         "config_list": config_list,
     }
 
+    message_queue = queue.Queue()
+
     def yield_update(update_type, content):
-        yield f"data: {json.dumps({'type': update_type, 'content': content})}\n\n"
+        event = json.dumps({"type": update_type, "content": content}) + '\n'
+        message_queue.put(event)
 
     user_proxy = create_user_proxy()
     researchers = []
@@ -167,9 +175,9 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Generator[str, Non
 
     researcher = create_agent(
         f"Researcher",
-        f"""I am a Researcher. I am an expert for these data sources: {researcher_agents_list}. I will investigate and research any questions regarding this specific data source. I will always use the search feature to find the information I need.  
+        f"""I am a Researcher. I am an expert for these data sources: {researcher_agents_list}. I will break down any questions into 5-10 sub questions to retrieve the information from the data sources. I will always use the search feature to find the information I need.  
 
-        Through the search feature, I am querying a semantic search engine so it's good to have long, detailed & descriptive sentences. I must always break it down in 5-10 search queries / question to get the information I need. I will never just search for the question directly.
+        Through the search feature, I am querying a semantic search engine so it's good to have long, detailed & descriptive sentences. I must always break it down in 5-10 search queries / questions to get the information I need. 
  
         I do not use any common knowledge, I always use the search feature to find the information I need.
 
@@ -183,20 +191,28 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Generator[str, Non
         try:
             index_manager = create_index_manager(user_id, source['index'], is_restricted)
         except ContainerNameTooLongError as e:
-            yield from yield_update('error', str(e))
+            yield_update('error', str(e))
             return
 
         if not index_manager.user_has_access():
-            yield from yield_update('error', f'Unauthorized access to index: {source["index"]}')
+            yield_update('error', f'Unauthorized access to index: {source["index"]}')
             return
 
         search_index = index_manager.get_search_index_name()
         index_name = source.get("name", "") or source.get("index", "")
 
-
         def create_lookup_function(index: str) -> Callable[[Annotated[str, f"Use this function to search for information on the data source: {index_name}"]], str]:
             def lookup_information(question: Annotated[str, f"Use this function to search for information on the data source: {index_name}"]) -> str:
-                return search(question, index)
+                yield_update('search', {'index': index, 'query': question})
+                result, full_response = search(question, index)
+                yield_update('search_complete', {'index': index, 'result': result, 'full_response': full_response})
+                
+                # Extract and yield individual citations
+                citations = extract_citations(result)
+                for citation in citations:
+                    yield_update('citation', citation)
+                
+                return result
             return lookup_information
 
         lookup_function = create_lookup_function(search_index)
@@ -212,9 +228,12 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Generator[str, Non
         
     reviewer = create_reviewer_agent(llm_config, single_data_source=(len(data_sources) == 1), list_of_researchers=researcher_agents_list)
 
-    # FIXME: messages emited via hook are not being yielded
-    reviewer.register_hook("process_message_before_send", build_on_message_hook(lambda sender, recipient, message: yield_update('message', message)))
-    researcher.register_hook("process_message_before_send", build_on_message_hook(lambda sender, recipient, message: yield_update('message', message)))
+    def on_message(sender, message, recipient, silent):
+        yield_update('message', message)
+        return message
+
+    reviewer.register_hook("process_message_before_send", on_message)
+    researcher.register_hook("process_message_before_send", on_message)
 
     groupchat = GroupChat(
         agents=[user_proxy, reviewer, researcher],
@@ -224,33 +243,37 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Generator[str, Non
     )
     manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
 
-    yield from yield_update('research_start', {'question': question})
+    yield_update('research_start', {'question': question})
     
-    chat_result = user_proxy.initiate_chat(
-        manager,
-        message=question,
-        max_rounds=max_rounds
-    )
-
-    for message in chat_result.chat_history:
-        yield from yield_update('message', message)
-        
-        citations = extract_citations(message.get('content', ''))
-        for citation in citations:
-            yield from yield_update('potential_source', {'title': citation['title'], 'url': citation['url']})
+    chat_result = None
+    chat_complete = False
     
-    yield from yield_update('status', 'Generating final conclusion...')
-    final_conclusion = generate_final_conclusion(chat_result)
-    yield from yield_update('final_conclusion', final_conclusion)
+    def chat_thread():
+        nonlocal chat_result, chat_complete
+        chat_result = user_proxy.initiate_chat(
+            manager,
+            message=question,
+            max_rounds=max_rounds
+        )
+        chat_complete = True
+        message_queue.put(json.dumps({"type": "chat_complete", "content": None}) + '\n')
 
-def build_on_message_hook(on_message: Callable[[str, str, Any], None]) -> Callable[[AssistantAgent, Union[Dict[str, Any], str], AssistantAgent, bool], Union[Dict[str, Any], str]]:
-    def send_message_hook(
-        sender: AssistantAgent,
-        message: Union[Dict[str, Any], str],
-        recipient: AssistantAgent,
-        silent: bool,
-    ) -> Union[Dict[str, Any], str]:
-        on_message(sender.name, recipient.name, message)
-        return message
+    thread = threading.Thread(target=chat_thread)
+    thread.start()
 
-    return send_message_hook
+    while not chat_complete:
+        try:
+            event = message_queue.get(timeout=0.1)
+            yield event
+        except queue.Empty:
+            yield json.dumps({"type": "heartbeat", "content": None}) + '\n'
+
+    thread.join()
+
+    yield_update('status', 'Generating final conclusion...')
+    final_conclusion, full_conclusion_response = generate_final_conclusion(chat_result)
+    yield json.dumps({"type": "final_conclusion", "content": final_conclusion, "full_response": full_conclusion_response}) + '\n'
+
+    citations = extract_citations(final_conclusion)
+    for citation in citations:
+        yield json.dumps({"type": "final_citation", "content": citation}) + '\n'
