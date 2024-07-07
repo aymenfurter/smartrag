@@ -27,12 +27,12 @@ def analyze_image(client: AzureOpenAI, b64_img: str, model: str = None) -> str:
 
 def create_payload(messages: List[Dict[str, Any]], context: Dict[str, Any] = None, 
                    session_state: Dict[str, Any] = None, data_sources: List[Dict[str, Any]] = None, 
-                   is_streaming: bool = False) -> Dict[str, Any]:
+                   is_streaming: bool = False, max_tokens: int = 1000) -> Dict[str, Any]:
     """Create a payload for OpenAI API requests."""
     payload = {
         "messages": messages,
         "stream": is_streaming,
-        "max_tokens": 1000,
+        "max_tokens": max_tokens,
     }
     if data_sources:
         payload.update({
