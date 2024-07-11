@@ -2,11 +2,24 @@ import os
 import re
 from typing import List
 from .azure_openai import get_azure_openai_client
+import agentops
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Initialize AgentOps
+AGENTOPS_API_KEY = os.getenv("AGENTOPS_API_KEY")
+if not AGENTOPS_API_KEY:
+    raise ValueError("AGENTOPS_API_KEY not found in environment variables")
+
+agentops.init(AGENTOPS_API_KEY)
 
 ENABLE_TABLE_SUMMARY = True
 ENABLE_ROW_DESCRIPTIONS = False
 ENABLE_QA_PAIRS = True
 
+@agentops.record_function('enhance_markdown')
 def enhance_markdown(markdown_content: str) -> str:
     """Enhance markdown content with additional information."""
     tables = extract_tables(markdown_content)
@@ -17,16 +30,9 @@ def enhance_markdown(markdown_content: str) -> str:
     
     return markdown_content
 
+@agentops.record_function('extract_tables')
 def extract_tables(markdown_content):
-    """
-    Extract markdown tables from the provided markdown content.
-    
-    Args:
-    markdown_content (str): The full markdown text containing zero or more markdown tables.
-
-    Returns:
-    list of str: A list of extracted tables, each formatted as a string including trailing newlines.
-    """
+    """Extract markdown tables from the provided markdown content."""
     def is_table_line(line):
         """Check if a line is part of a markdown table."""
         return '|' in line and line.strip().startswith('|') and line.strip().endswith('|')
@@ -54,9 +60,7 @@ def extract_tables(markdown_content):
 
     return tables
 
-
-
-
+@agentops.record_function('enhance_table')
 def enhance_table(table_content: str) -> str:
     """Apply all enabled enhancements to a single table."""
     enhanced_content = table_content
@@ -72,18 +76,24 @@ def enhance_table(table_content: str) -> str:
     
     return enhanced_content
 
+@agentops.record_function('llm')
 def llm(prompt: str) -> str:
     """Make a call to GPT-4 model."""
     client = get_azure_openai_client()
-    response = client.chat.completions.create(
-        model=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"],
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant skilled in analyzing and describing tabular data."},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    return response.choices[0].message.content.strip()
+    try:
+        response = client.chat.completions.create(
+            model=os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"],
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant skilled in analyzing and describing tabular data."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        agentops.log_error(f"Error in LLM call: {str(e)}")
+        return f"Error: {str(e)}"
 
+@agentops.record_function('generate_table_summary')
 def generate_table_summary(table_content: str) -> str:
     """Generate a summary of the table content."""
     prompt = f"""
@@ -103,6 +113,7 @@ Aim to give a reader a quick understanding of what this table is about and its m
     summary = llm(prompt)
     return f"\n\n<!-- Table Summary: {summary} -->\n"
 
+@agentops.record_function('generate_row_descriptions')
 def generate_row_descriptions(table_content: str) -> str:
     """Generate natural language descriptions for each row."""
     rows = table_content.split('\n')
@@ -134,6 +145,7 @@ Aim to give a clear and informative summary of what this row represents in the c
     
     return '\n'.join(new_rows)
 
+@agentops.record_function('generate_qa_pairs')
 def generate_qa_pairs(table_content: str) -> str:
     """Generate question-answer pairs based on the table content."""
     prompt = f"""
@@ -160,3 +172,31 @@ A2: [Answer 2]
     """
     qa_pairs = llm(prompt)
     return f"\n\n<!-- Q&A Pairs:\n{qa_pairs}\n-->\n"
+
+@agentops.record_function('main')
+def main():
+    # Example usage
+    sample_markdown = """
+    # Sample Markdown
+
+    Here's a sample table:
+
+    | Column 1 | Column 2 | Column 3 |
+    |----------|----------|----------|
+    | Value 1  | Value 2  | Value 3  |
+    | Value 4  | Value 5  | Value 6  |
+
+    Some text after the table.
+    """
+
+    enhanced_markdown = enhance_markdown(sample_markdown)
+    print("Enhanced Markdown:")
+    print(enhanced_markdown)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        agentops.log_error(str(e))
+    finally:
+        agentops.end_session('Success')

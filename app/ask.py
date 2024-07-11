@@ -7,6 +7,19 @@ from langchain_openai import AzureChatOpenAI
 from langchain.chains import LLMChain
 from .index_manager import create_index_manager, ContainerNameTooLongError, IndexManager
 from .azure_openai import get_openai_config
+import agentops
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Initialize AgentOps
+AGENTOPS_API_KEY = os.getenv("AGENTOPS_API_KEY")
+if not AGENTOPS_API_KEY:
+    raise ValueError("AGENTOPS_API_KEY not found in environment variables")
+
+agentops.init(AGENTOPS_API_KEY)
 
 class AskService:
     def __init__(self, blob_service):
@@ -20,6 +33,7 @@ class AskService:
 
     @staticmethod
     @lru_cache(maxsize=1)
+    @agentops.record_function('initialize_llm')
     def _initialize_llm() -> AzureChatOpenAI:
         config = get_openai_config()
         return AzureChatOpenAI(
@@ -29,6 +43,7 @@ class AskService:
             api_key=config["AOAI_API_KEY"],
         )
 
+    @agentops.record_function('ask_question')
     def ask_question(self, data: Dict[str, Any], user_id: str) -> Tuple[Dict[str, Any], int]:
         try:
             self._validate_input(data)
@@ -37,18 +52,20 @@ class AskService:
             answers = self._process_questions(document_content, data['questions'])
             return {"answers": answers}, 200
         except ValueError as e:
-            print(e)
+            agentops.log_error(str(e))
             return {"error": str(e)}, 400
         except Exception as e:
-            print(e)
+            agentops.log_error(str(e))
             return {"error": "An unexpected error occurred"}, 500
 
     @staticmethod
+    @agentops.record_function('validate_input')
     def _validate_input(data: Dict[str, Any]) -> None:
         required_fields = ['indexName', 'questions', 'fileName']
         if not all(field in data for field in required_fields):
             raise ValueError("Missing required parameters")
 
+    @agentops.record_function('get_index_manager')
     def _get_index_manager(self, user_id: str, index_name: str, is_restricted: bool) -> IndexManager:
         try:
             index_manager = create_index_manager(user_id, index_name, is_restricted)
@@ -58,12 +75,14 @@ class AskService:
         except ContainerNameTooLongError as e:
             raise ValueError(str(e))
 
+    @agentops.record_function('get_document_content')
     def _get_document_content(self, index_manager: IndexManager, filename: str) -> str:
         try:
             return self._collect_document_content(index_manager, filename)
         except Exception as e:
             raise ValueError(f"Error collecting document content: {str(e)}")
 
+    @agentops.record_function('process_questions')
     def _process_questions(self, document_content: str, questions: List[str]) -> List[Dict[str, str]]:
         chunks = self.text_splitter.split_text(document_content)
         
@@ -72,6 +91,7 @@ class AskService:
         
         return [self._process_single_question(summary, question) for question in questions]
 
+    @agentops.record_function('generate_summary')
     def _generate_summary(self, chunks: List[str], questions: str) -> str:
         summary_chain = LLMChain(llm=self.llm, prompt=self._get_custom_summary_prompt())
         
@@ -83,6 +103,7 @@ class AskService:
         final_summary = summary_chain.run(questions=questions, document_content=summary)
         return final_summary
 
+    @agentops.record_function('process_single_question')
     def _process_single_question(self, summary: str, question: str) -> Dict[str, str]:
         prompt = self._get_qa_prompt().format(context=summary, question=question)
         response = self.llm.invoke(prompt)
@@ -120,12 +141,14 @@ class AskService:
         Answer:"""
         return PromptTemplate(template=template, input_variables=["context", "question"])
 
+    @agentops.record_function('collect_document_content')
     def _collect_document_content(self, index_manager: IndexManager, filename: str) -> str:
         container_name = index_manager.get_ingestion_container()
         files = self._list_container_files(container_name)
         relevant_files = self._filter_relevant_files(files, filename)
         return self._combine_file_contents(container_name, relevant_files)
 
+    @agentops.record_function('list_container_files')
     def _list_container_files(self, container_name: str) -> List[str]:
         try:
             container_client = self.blob_service.get_container_client(container_name)
@@ -134,6 +157,7 @@ class AskService:
             raise ValueError(f"Error listing files: {str(e)}")
 
     @staticmethod
+    @agentops.record_function('filter_relevant_files')
     def _filter_relevant_files(files: List[str], filename: str) -> List[str]:
         relevant_files = [f for f in files if f.startswith(filename) and f.endswith('.md')]
         relevant_files.sort(key=lambda x: int(x.split('___Page')[1].split('.')[0]))
@@ -141,6 +165,7 @@ class AskService:
             raise ValueError(f"No markdown files found for {filename}")
         return relevant_files
 
+    @agentops.record_function('combine_file_contents')
     def _combine_file_contents(self, container_name: str, files: List[str]) -> str:
         container_client = self.blob_service.get_container_client(container_name)
         full_content = ""
@@ -149,3 +174,29 @@ class AskService:
             content = blob_client.download_blob().readall().decode('utf-8')
             full_content += f"--- Page {i} ---\n{content}\n\n"
         return full_content
+
+@agentops.record_function('main')
+def main():
+    # Example usage of AskService
+    blob_service = None  # Initialize this with your actual blob service
+    ask_service = AskService(blob_service)
+    
+    data = {
+        "indexName": "example_index",
+        "questions": ["What is the main topic of the document?", "Who are the key stakeholders mentioned?"],
+        "fileName": "example_document",
+        "isRestricted": False
+    }
+    user_id = "example_user"
+    
+    result, status_code = ask_service.ask_question(data, user_id)
+    print(f"Status Code: {status_code}")
+    print("Result:", result)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        agentops.log_error(str(e))
+    finally:
+        agentops.end_session('Success')
