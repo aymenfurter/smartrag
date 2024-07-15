@@ -35,8 +35,8 @@ def serve(path):
 def start_queue_processor():
     process_queue_messages()
 
-if __name__ == '__main__':
-    queue_processor_thread = threading.Thread(target=start_queue_processor, daemon=True)
-    queue_processor_thread.start()
+queue_processor_thread = threading.Thread(target=start_queue_processor, daemon=True)
+queue_processor_thread.start()
 
-    socketio.run(app, host='0.0.0.0', debug=True, use_reloader=False)
+if __name__ == '__main__':
+    socketio.run(app, debug=False, use_reloader=False)

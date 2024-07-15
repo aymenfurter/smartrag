@@ -164,6 +164,7 @@ const Answer = styled.div`
   color: ${props => props.theme.messageText};
 `;
 
+
 function AskSection({ indexName, isRestricted }) {
   const [selectedFile, setSelectedFile] = useState('');
   const [files, setFiles] = useState([]);

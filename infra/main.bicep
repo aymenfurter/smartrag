@@ -172,7 +172,7 @@ module app 'core/host/container-app.bicep' = {
     name: '${environmentName}-app'
     location: location
     identityType: 'SystemAssigned'
-    imageName: 'ghcr.io/aymenfurter/smartrag/smartrag:5d4c3e4eb4f7e1d9c0bf4ad103bb96e2c20fe0d2'
+    imageName: 'ghcr.io/aymenfurter/smartrag/smartrag:b6dda1250e60cf8d96474305b2cdb5113cfe452f'
     tags: { 'azd-service-name': 'app' }
     containerAppsEnvironmentName: containerApps.outputs.environmentName
     env: [
@@ -296,12 +296,12 @@ module storageBlobDataContributorRoleOpenAI 'core/security/role.bicep' = {
   }
 }
 
-module storageBlobDataContributorRoleSearch 'core/security/role.bicep' = {
+module storageQueueDataContributorRoleOpenAI 'core/security/role.bicep' = {
   scope: rg
-  name: 'storage-blob-data-contributor-search'
+  name: 'storage-queue-data-contributor-openai'
   params: {
-    principalId: search.outputs.identityPrincipalId
-    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+    principalId: openai.outputs.identityPrincipalId
+    roleDefinitionId: '974c5e8b-45b9-4653-ba55-5f855dd0fb88' 
     principalType: 'ServicePrincipal'
   }
 }

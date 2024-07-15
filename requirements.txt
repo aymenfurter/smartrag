@@ -16,3 +16,5 @@ langchain
 langchain-openai
 tenacity
 flask-socketio
+gunicorn
+gevent

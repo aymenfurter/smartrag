@@ -87,7 +87,6 @@ def process_queue_messages():
             except Exception as e:
                 logging.error(f"Error processing message: {str(e)}")
 
-        logging.info("Waiting for more messages...")
         time.sleep(5)
 
 def queue_file_for_processing(filename: str, user_id: str, index_name: str, is_restricted: bool, num_pages: int, blob_url: str, is_multimodal: bool):
