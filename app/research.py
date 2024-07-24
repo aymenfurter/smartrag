@@ -5,10 +5,11 @@ import queue
 from typing import Dict, Any, Callable, Annotated, Generator, Union
 from flask import Response
 from autogen import AssistantAgent, UserProxyAgent, GroupChat, GroupChatManager 
-from .azure_openai import create_payload, create_data_source, get_openai_config
+from .azure_openai import create_payload, create_data_source, get_openai_config, get_openai_embedding, calculate_cosine_similarity
 from .index_manager import create_index_manager, ContainerNameTooLongError
 import time
 import requests
+import numpy as np
 
 class RateLimitException(Exception):
     pass
@@ -135,6 +136,13 @@ def generate_final_conclusion(chat_result: Any) -> str:
     
     return response.json()["choices"][0]["message"]["content"], response.json()
 
+@retry_request
+def get_embedding_with_retry(text: str) -> np.ndarray:
+    response = get_openai_embedding(text)
+    if "error" in response:
+        raise RateLimitException(response["error"])
+    return response["embedding"]
+
 def extract_citations(text):
     citations = []
     citation_pattern = r'\[([^\]]+)\]\(([^)]+)\)'
@@ -163,6 +171,8 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Generator[str, Non
     }
 
     message_queue = queue.Queue()
+    previous_queries = []
+    previous_embeddings = []
 
     def yield_update(update_type, content):
         event = json.dumps({"type": update_type, "content": content}) + '\n'
@@ -203,15 +213,26 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Generator[str, Non
 
         def create_lookup_function(index: str) -> Callable[[Annotated[str, f"Use this function to search for information on the data source: {index_name}"]], str]:
             def lookup_information(question: Annotated[str, f"Use this function to search for information on the data source: {index_name}"]) -> str:
-                yield_update('search', {'index': index, 'query': question})
+                # Calculate similarity with previous queries
+                query_embedding = get_embedding_with_retry(question)
+                previous_embeddings.append(query_embedding)
+                previous_queries.append(question)
+
+                related_query = None
+                if len(previous_queries) > 1:
+                    similarities = [calculate_cosine_similarity(query_embedding, prev_embedding) for prev_embedding in previous_embeddings[:-1]]
+                    most_similar_index = np.argmax(similarities)
+                    related_query = previous_queries[most_similar_index]
+
+                yield_update('search', {'index': index, 'query': question, 'relatedQuery': related_query})
                 result, full_response = search(question, index)
                 yield_update('search_complete', {'index': index, 'result': result, 'full_response': full_response})
                 
                 # Extract and yield individual citations
                 citations = extract_citations(result)
                 for citation in citations:
-                    yield_update('citation', citation)
-                
+                    yield_update('citation', {'query': question, **citation})
+
                 return result
             return lookup_information
 

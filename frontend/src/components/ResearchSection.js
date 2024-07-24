@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faMinus, faChevronDown, faChevronUp, faSearch, faSpinner, faFile, faPaperPlane, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatMessage } from './ChatSection';
+import { Network } from 'vis-network/standalone';
 
 const fadeIn = keyframes`
   from { opacity: 0; }
@@ -31,24 +32,12 @@ const ResultsContainer = styled.div`
   animation: ${fadeIn} 0.5s ease-out;
 `;
 
-const ResearchQuestion = styled.h3`
-  color: ${props => props.theme.titleColor};
-  font-size: 24px;
-  margin-bottom: 20px;
-`;
-
 const ConclusionContainer = styled.div`
   background-color: ${props => props.theme.conclusionBackground};
   padding: 20px;
   border-radius: 15px;
   margin-bottom: 30px;
   border: 1px solid ${props => props.theme.borderColor};
-`;
-
-const ConclusionTitle = styled.h3`
-  color: ${props => props.theme.titleColor};
-  font-size: 20px;
-  margin-bottom: 15px;
 `;
 
 const ConclusionContent = styled.div`
@@ -369,6 +358,18 @@ const CloseButton = styled(Button)`
   margin-bottom: 10px;
 `;
 
+const TreeContainer = styled.div`
+  margin-bottom: 30px;
+  height: 400px;
+  background-color: ${props => props.theme.cardBackground};
+  border-radius: 15px;
+  padding: 20px;
+  border: 1px solid ${props => props.theme.borderColor};
+  .vis-network {
+    height: 100%;
+  }
+`;
+
 const safeFormatMessage = (message) => {
   if (typeof message === 'string') {
     return formatMessage(message);
@@ -395,6 +396,7 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
   const [currentPage, setCurrentPage] = useState(1);
   const [pdfPreview, setPDFPreview] = useState(null);
   const itemsPerPage = 10;
+  const networkRef = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -410,6 +412,12 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
       setDataSources([{ index: initialIndex[0], name: '', description: '', isExpanded: false, isRestricted: initialIndex[1] }]);
     }
   }, [initialQuestion, initialIndex]);
+
+  useEffect(() => {
+    if (networkRef.current && searchEvents.length > 0) {
+      renderNetworkGraph();
+    }
+  }, [searchEvents, topDocuments, researchCompleted]);
 
   const handleAddDataSource = () => {
     setDataSources([...dataSources, { index: '', name: '', description: '', isExpanded: false, isRestricted: true }]);
@@ -520,7 +528,7 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
         setConversation(prev => [...prev, { ...data, timestamp: Date.now() }]); 
         break;
       case 'citation':
-        updateTopDocuments(data.content.title, data.content.url);
+        updateTopDocuments(data.content.title, data.content.url, data.content.query);
         setChartData(prev => [...prev, { time: Date.now(), searches: prev.length > 0 ? prev[prev.length - 1].searches : 0, citations: prev.length > 0 ? prev[prev.length - 1].citations + 1 : 1 }]);
         break;
       case 'status':
@@ -536,11 +544,11 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
     }
   }, [isMounted]);
 
-  const updateTopDocuments = (document, url) => {
+  const updateTopDocuments = (document, url, query) => {
     setTopDocuments(prev => {
       const newTopDocuments = { ...prev };
       if (!newTopDocuments[document]) {
-        newTopDocuments[document] = { count: 1, url: url };
+        newTopDocuments[document] = { count: 1, url: url, query: query };
       } else {
         newTopDocuments[document].count += 1;
       }
@@ -726,7 +734,6 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
 
     return (
       <ResultsContainer>
-        <ResearchQuestion>{question}</ResearchQuestion>
         {results && (
           <ConclusionContainer>
             <ConclusionContent 
@@ -749,6 +756,7 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
         )}
        
         <ResearchDataSection>
+          <TreeContainer ref={networkRef} className="vis-network" />
           <GraphContainer>
             {renderGraph()}
           </GraphContainer>
@@ -764,12 +772,12 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
             <EventItem key={index}>
               {event.eventType === 'searchEvent' ? (
                 <div>
-                  {event.type === 'search' && (
+                  {event.type === 'search' && event.content.query && (
                     <>
                       <StyledFontAwesomeIcon icon={faSearch} /> Searching in {event.content.index}: <SearchHighlight>"{event.content.query}"</SearchHighlight>
                     </>
                   )}
-                  {event.type === 'search_complete' && (
+                  {event.type === 'search_complete' && event.content.query && (
                     <>
                       <StyledFontAwesomeIcon icon={faFile} /> Search complete in {event.content.index}
                     </>
@@ -810,6 +818,95 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
         )}
       </ResultsContainer>
     );
+  };
+  const renderNetworkGraph = () => {
+    const nodes = [];
+    const edges = [];
+  
+    if (question) {
+      nodes.push({ id: 'root', label: question, shape: 'box', color: '#915e1f' });
+    }
+  
+    searchEvents.forEach((event, index) => {
+      const { content } = event;
+      if (content.query) {
+        const queryNodeId = `query-${index}`;
+        nodes.push({ id: queryNodeId, label: content.query });
+  
+        if (content.relatedQuery) {
+          const relatedIndex = searchEvents.findIndex(e => e.content.query === content.relatedQuery);
+          if (relatedIndex !== -1) {
+            edges.push({ from: `query-${relatedIndex}`, to: queryNodeId });
+          }
+        } else {
+          edges.push({ from: 'root', to: queryNodeId });
+        }
+      }
+    });
+  
+    Object.keys(topDocuments).forEach((doc, docIndex) => {
+      const docNodeId = `doc-${docIndex}`;
+      if (doc) {
+        nodes.push({ id: docNodeId, label: doc, shape: 'box', color: '#4da6ff'});
+  
+        const queryIndex = searchEvents.findIndex(e => e.content.query === topDocuments[doc].query);
+        if (queryIndex !== -1) {
+          edges.push({ from: `query-${queryIndex}`, to: docNodeId });
+        }
+      }
+    });
+  
+    const data = { nodes, edges };
+    const options = {
+      height: '100%',
+      width: '100%',
+      physics: {
+        enabled: true,
+        stabilization: false,
+        solver: "repulsion",
+        repulsion: {
+          nodeDistance: 600,
+          damping: 1,
+        }
+      },
+      interaction: {
+        dragView: true
+      },
+      nodes: {
+        shape: 'box',
+        size: 10,
+        color: '#33bcee',
+        font: {
+          color: 'white',
+        },
+      },
+      edges: {
+        smooth: false,
+        arrows: {
+          to: {
+            enabled: true,
+            type: 'vee',
+          },
+        },
+      },
+    };
+  
+    const network = new Network(networkRef.current, data, options);
+
+    network.on("click", function(params) {
+      if (params.nodes.length > 0) {
+        const clickedNode = nodes.find(node => node.id === params.nodes[0]);
+        if (clickedNode && clickedNode.id.startsWith('doc-')) {
+          const document = clickedNode.label;
+          const documentInfo = topDocuments[document];
+          if (documentInfo) {
+            handleCitation(document, documentInfo.url);
+          }
+        }
+      }
+    });
+
+
   };
 
   return (
@@ -859,4 +956,3 @@ const Pagination = ({ itemsPerPage, totalItems, paginate, currentPage }) => {
 };
 
 export default ResearchSection;
-                        

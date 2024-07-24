@@ -3,9 +3,8 @@ import ReactDOM from 'react-dom';
 import App from './App';
 import { createGlobalStyle, ThemeProvider } from 'styled-components';
 import { useState, useEffect } from 'react';
-
 const GlobalStyle = createGlobalStyle`
-  body {
+   body {
     margin: 0;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -20,19 +19,19 @@ const GlobalStyle = createGlobalStyle`
   * {
     box-sizing: border-box;
   }
-  
+
   a {
     color: ${props => props.theme.linkColor};
     text-decoration: none;
-    position: relative;
     transition: color 0.3s ease;
 
     &:hover {
       color: ${props => props.theme.linkHoverColor};
     }
-
   }
+
 `;
+
 
 const baseTheme = {
   primaryColor: '#0078D7',
@@ -130,7 +129,6 @@ const getThemeValues = (theme) => ({
   selectBackground: theme.type === 'light' ? theme.backgroundColor : theme.secondaryColor,
   selectText: theme.textColor, 
   selectBorder: theme.borderColor,
-
   conclusionBackground: theme.type === 'light' ? '#f0f8ff' : '#2a2a2a',
   eventLogBackground: theme.type === 'light' ? '#f9f9f9' : '#2a2a2a',
   eventItemBackground: theme.type === 'light' ? '#ffffff' : '#333333',

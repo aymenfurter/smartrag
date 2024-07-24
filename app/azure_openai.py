@@ -3,6 +3,8 @@ from typing import Dict, Any, List, Generator
 import requests
 from flask import Response
 from openai import AzureOpenAI
+import numpy as np
+
 
 def get_azure_openai_client(api_key: str = None, api_version: str = None, azure_endpoint: str = None) -> AzureOpenAI:
     """Create and return an AzureOpenAI client."""
@@ -75,6 +77,37 @@ def get_openai_config() -> Dict[str, str]:
         "SEARCH_SERVICE_ENDPOINT": os.environ.get('SEARCH_SERVICE_ENDPOINT', ''),
         "SEARCH_SERVICE_API_KEY": os.environ.get('SEARCH_SERVICE_API_KEY', '')
     }
+
+def get_openai_embedding(text: str) -> Dict[str, Any]:
+    """Calculate OpenAI embedding value for a given text."""
+    config = get_openai_config()
+    url = f"{config['OPENAI_ENDPOINT']}/openai/deployments/text-embedding-ada-002/embeddings?api-version=2024-02-15-preview"
+    headers = {
+        "Content-Type": "application/json",
+        "api-key": config['AOAI_API_KEY']
+    }
+    payload = {
+        "input": text,
+        "model": "text-embedding-ada-002"
+    }
+    
+    response = get_response(url, headers, payload)
+    
+    if response.get("error"):
+        return response
+    
+    embedding = response["data"][0]["embedding"]
+    
+    return {"embedding": np.array(embedding)}
+
+def calculate_cosine_similarity(vector1: np.ndarray, vector2: np.ndarray) -> float:
+    """Calculate cosine similarity between two vectors."""
+    dot_product = np.dot(vector1, vector2)
+    norm_vector1 = np.linalg.norm(vector1)
+    norm_vector2 = np.linalg.norm(vector2)
+    similarity = dot_product / (norm_vector1 * norm_vector2)
+    
+    return similarity
 
 def _get_image_analysis_prompt() -> str:
     """Return the prompt for image analysis."""
