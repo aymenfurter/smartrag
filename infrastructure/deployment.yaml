@@ -4,7 +4,7 @@
     "parameters": {
         "environmentName": {
             "type": "string",
-            "defaultValue": "[uniqueString(subscription().subscriptionId, resourceGroup().id)]",
+            "defaultValue": "[uniqueString(subscription().subscriptionId)]",
             "metadata": {
                 "description": "Name of the environment which is used to generate a short unique hash used in all resources."
             }
@@ -61,6 +61,7 @@
     },
     "variables": {
         "resourceToken": "[toLower(uniqueString(subscription().id, parameters('environmentName'), parameters('location')))]",
+        "resourceGroupName": "[format('rg-{0}', parameters('environmentName'))]",
         "azureOpenAIResourceName": "[format('openai-{0}', variables('resourceToken'))]",
         "azureAISearchName": "[format('search-{0}', variables('resourceToken'))]",
         "storageAccountName": "[format('str{0}', variables('resourceToken'))]",
@@ -74,17 +75,15 @@
         {
             "type": "Microsoft.Resources/resourceGroups",
             "apiVersion": "2021-04-01",
-            "name": "[format('rg-{0}', parameters('environmentName'))]",
+            "name": "[variables('resourceGroupName')]",
             "location": "[parameters('location')]",
-            "tags": {
-                "environment": "production"
-            }
+            "properties": {}
         },
         {
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2021-04-01",
             "name": "openaiDeployment",
-            "resourceGroup": "[format('rg-{0}', parameters('environmentName'))]",
+            "resourceGroup": "[variables('resourceGroupName')]",
             "properties": {
                 "expressionEvaluationOptions": {
                     "scope": "inner"
@@ -200,14 +199,14 @@
                 }
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Resources/resourceGroups', format('rg-{0}', parameters('environmentName')))]"
+                "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
             ]
         },
         {
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2021-04-01",
             "name": "searchDeployment",
-            "resourceGroup": "[format('rg-{0}', parameters('environmentName'))]",
+            "resourceGroup": "[variables('resourceGroupName')]",
             "properties": {
                 "expressionEvaluationOptions": {
                     "scope": "inner"
@@ -277,14 +276,14 @@
                 }
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Resources/resourceGroups', format('rg-{0}', parameters('environmentName')))]"
+                "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
             ]
         },
         {
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2021-04-01",
             "name": "storageDeployment",
-            "resourceGroup": "[format('rg-{0}', parameters('environmentName'))]",
+            "resourceGroup": "[variables('resourceGroupName')]",
             "properties": {
                 "expressionEvaluationOptions": {
                     "scope": "inner"
@@ -346,14 +345,14 @@
                 }
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Resources/resourceGroups', format('rg-{0}', parameters('environmentName')))]"
+                "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
             ]
         },
         {
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2021-04-01",
             "name": "monitoringDeployment",
-            "resourceGroup": "[format('rg-{0}', parameters('environmentName'))]",
+            "resourceGroup": "[variables('resourceGroupName')]",
             "properties": {
                 "expressionEvaluationOptions": {
                     "scope": "inner"
@@ -407,12 +406,12 @@
                             }
                         },
                         {
-"type": "Microsoft.Insights/components",
+                            "type": "Microsoft.Insights/components",
                             "apiVersion": "2020-02-02",
                             "name": "[parameters('applicationInsightsName')]",
                             "location": "[parameters('location')]",
                             "kind": "web",
-                            "properties": {
+"properties": {
                                 "Application_Type": "web",
                                 "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsName'))]"
                             },
@@ -477,14 +476,14 @@
                 }
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Resources/resourceGroups', format('rg-{0}', parameters('environmentName')))]"
+                "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
             ]
         },
         {
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2021-04-01",
             "name": "containerAppsEnvironmentDeployment",
-            "resourceGroup": "[format('rg-{0}', parameters('environmentName'))]",
+            "resourceGroup": "[variables('resourceGroupName')]",
             "properties": {
                 "expressionEvaluationOptions": {
                     "scope": "inner"
@@ -556,7 +555,7 @@
                 }
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Resources/resourceGroups', format('rg-{0}', parameters('environmentName')))]",
+                "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]",
                 "monitoringDeployment"
             ]
         }
