@@ -146,7 +146,7 @@ module cosmosDb 'core/database/cosmos-db.bicep' = {
   name: 'cosmos-db'
   scope: rg
   params: {
-    name: cosmosDbAccountName
+    cosmosDbName: cosmosDbAccountName
     location: location
     tags: tags
   }
