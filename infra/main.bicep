@@ -328,13 +328,13 @@ module storageQueueDataContributorRoleOpenAI 'core/security/role.bicep' = {
   }
 }
 
-module cosmosDbDataContributorRoleApp 'core/security/role.bicep' = {
+module cosmosDbDataContributorRoleApp 'core/security/cosmos-role.bicep' = {
   scope: rg
   name: 'cosmosdb-data-contributor-role-app'
   params: {
+    cosmosDbAccountId: cosmosDb.outputs.id
     principalId: app.outputs.identityPrincipalId
     roleDefinitionId: '00000000-0000-0000-0000-000000000002'
-    principalType: 'ServicePrincipal'
   }
   dependsOn: [
     cosmosDb
