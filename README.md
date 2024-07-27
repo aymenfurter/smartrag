@@ -9,8 +9,13 @@
     🐞 <a href="https://github.com/aymenfurter/smartrag/issues">Report Bug</a>
     ·
     💡 <a href="https://github.com/aymenfurter/smartrag/issues">Request Feature</a>
-
-  [![Python Tests](https://github.com/aymenfurter/smartrag/actions/workflows/python-tests.yml/badge.svg)](https://github.com/aymenfurter/smartrag/actions/workflows/python-tests.yml)
+  </p>
+  <br/> 
+  <p>
+  <a href="https://github.com/aymenfurter/smartrag/actions/workflows/python-tests.yml">
+    <img height="30" src="https://github.com/aymenfurter/smartrag/actions/workflows/python-tests.yml/badge.svg" alt="Python Tests"></a>&nbsp; <a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Faymenfurter%2Fsmartrag%2Fdeployment%2Finfrastructure%2Fdeployment.json">
+  <img height="30" src="https://aka.ms/deploytoazurebutton" alt="Deploy to Azure">
+</a>
   </p>
 
 </div>
