@@ -18,125 +18,123 @@ import pyarrow as pa
 from io import BytesIO
 import tiktoken
 import numpy as np
+import logging
 
 # Load environment variables
+
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class GraphRagProcessor:
     def __init__(self, index_name, user_id, is_restricted):
-        self.index_name = index_name
-        self.user_id = user_id
         self.prefix = "open" if not is_restricted else user_id
+        self.index_name = index_name
         self.collection_name = f"{self.prefix}-{index_name}-graphrag"
-        self.config = self._get_config()
 
     def _get_config(self):
-        storage_account_name = os.getenv("STORAGE_ACCOUNT_NAME")
-        storage_account_key = os.getenv("STORAGE_ACCOUNT_KEY")
-        storage_account_blob_url = f"https://{storage_account_name}.blob.core.windows.net"
-        connection_string = f"DefaultEndpointsProtocol=https;AccountName={storage_account_name};AccountKey={storage_account_key};EndpointSuffix=core.windows.net"
+        storage_account = os.getenv("STORAGE_ACCOUNT_NAME")
+        storage_key = os.getenv("STORAGE_ACCOUNT_KEY")
+        blob_url = f"https://{storage_account}.blob.core.windows.net"
+        connection_string = f"DefaultEndpointsProtocol=https;AccountName={storage_account};AccountKey={storage_key};EndpointSuffix=core.windows.net"
 
-        return {
-            "input": {
-                "type": "blob",
-                "file_type": "text",
-                "file_pattern": r".*\.md$",
-                "storage_account_blob_url": storage_account_blob_url,
-                "connection_string": connection_string,
-                "container_name": f"{self.prefix}-{self.index_name}-ingestion",
-                "base_dir": ".",
+        base_config = {
+            "storage_account_blob_url": blob_url,
+            "connection_string": connection_string,
+        }
+
+        containers = {
+            "input": f"{self.prefix}-{self.index_name}-ingestion",
+            "storage": f"{self.prefix}-{self.index_name}-grdata",
+            "reporting": f"{self.prefix}-{self.index_name}-grrep",
+            "cache": f"{self.prefix}-{self.index_name}-grcache",
+        }
+
+        config = {
+            "input": {**base_config, "container_name": containers["input"], "type": "blob", "file_type": "text", "file_pattern": r".*\.md$", "base_dir": "."},
+            "storage": {**base_config, "container_name": containers["storage"], "type": "blob", "base_dir": "output"},
+            "reporting": {**base_config, "container_name": containers["reporting"], "type": "blob", "base_dir": "logs"},
+            "cache": {**base_config, "container_name": containers["cache"], "type": "blob", "base_dir": "cache"},
+            "llm": self._get_llm_config("chat"),
+            "embeddings": {
+                "async_mode": "threaded",
+                "llm": self._get_llm_config("embedding"),
+                "parallelization": {"stagger": 0.25, "num_threads": 10},
+                "vector_store": self._get_vector_store_config(),
             },
-            "storage": {
-                "type": "blob",
-                "storage_account_blob_url": storage_account_blob_url,
-                "connection_string": connection_string,
-                "container_name": f"{self.prefix}-{self.index_name}-grdata",
-                "base_dir": "output",
-            },
-            "reporting": {
-                "type": "blob",
-                "storage_account_blob_url": storage_account_blob_url,
-                "connection_string": connection_string,
-                "container_name": f"{self.prefix}-{self.index_name}-grrep",
-                "base_dir": "logs",
-            },
-            "cache": {
-                "type": "blob",
-                "storage_account_blob_url": storage_account_blob_url,
-                "container_name": f"{self.prefix}-{self.index_name}-grcache",
-                "connection_string": connection_string,
-                "base_dir": "cache",
-            },
-            "llm": {
-                "type": "azure_openai_chat",
-                "api_base": os.getenv("OPENAI_ENDPOINT"),
-                "api_version": "2023-03-15-preview",
-                "model": os.getenv("ADA_DEPLOYMENT_NAME"),
+            "parallelization": {"stagger": 0.25, "num_threads": 10},
+            "async_mode": "threaded",
+            "entity_extraction": {"prompt": "app/prompts/entity-extraction-prompt.txt"},
+            "community_reports": {"prompt": "app/prompts/community-report-prompt.txt"},
+            "summarize_descriptions": {"prompt": "app/prompts/summarize-descriptions-prompt.txt"},
+            "claim_extraction": {"enabled": True},
+            "snapshots": {"graphml": True},
+        }
+        return config
+
+    def _get_llm_config(self, llm_type):
+        base_config = {
+            "type": f"azure_openai_{llm_type}",
+            "api_base": os.getenv("OPENAI_ENDPOINT"),
+            "api_version": "2023-03-15-preview",
+            "api_key": os.getenv("AOAI_API_KEY"),
+            "cognitive_services_endpoint": "https://cognitiveservices.azure.com/.default",
+        }
+        
+        if llm_type == "chat":
+            return {
+                **base_config,
+                "model": os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
                 "deployment_name": os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
-                "api_key": os.getenv("AOAI_API_KEY"),
-                "cognitive_services_endpoint": "https://cognitiveservices.azure.com/.default",
                 "model_supports_json": True,
                 "tokens_per_minute": 80000,
                 "requests_per_minute": 480,
                 "thread_count": 50,
                 "concurrent_requests": 25,
+            }
+        else:
+            return {
+                **base_config,
+                "batch_size": 16,
+                "model": os.getenv("ADA_DEPLOYMENT_NAME"),
+                "deployment_name": os.getenv("ADA_DEPLOYMENT_NAME"),
+                "tokens_per_minute": 350000,
+                "concurrent_requests": 25,
+                "requests_per_minute": 2100,
+                "thread_count": 50,
                 "max_retries": 50,
-            },
-            "parallelization": {
-                "stagger": 0.25,
-                "num_threads": 10,
-            },
-            "async_mode": "threaded",
-            "embeddings": {
-                "async_mode": "threaded",
-                "llm": {
-                    "type": "azure_openai_embedding",
-                    "api_base": os.getenv("OPENAI_ENDPOINT"),
-                    "api_version": "2023-03-15-preview",
-                    "batch_size": 16,
-                    "model": os.getenv("ADA_DEPLOYMENT_NAME"),
-                    "deployment_name": os.getenv("ADA_DEPLOYMENT_NAME"),
-                    "api_key": os.getenv("AOAI_API_KEY"),
-                    "cognitive_services_endpoint": "https://cognitiveservices.azure.com/.default",
-                    "tokens_per_minute": 350000,
-                    "concurrent_requests": 25,
-                    "requests_per_minute": 2100,
-                    "thread_count": 50,
-                    "max_retries": 50,
-                },
-                "parallelization": {
-                    "stagger": 0.25,
-                    "num_threads": 10,
-                },
-                "vector_store": {
-                    "type": "azure_ai_search",
-                    "collection_name": self.collection_name,
-                    "title_column": "name",
-                    "overwrite": True,
-                    "api_key": os.getenv("SEARCH_SERVICE_API_KEY"),
-                    "url": os.getenv("SEARCH_SERVICE_ENDPOINT"),
-                    "audience": "https://search.azure.com",
-                },
-            },
-            "entity_extraction": {
-                "prompt": "entity-extraction-prompt.txt",
-            },
-            "community_reports": {
-                "prompt": "community-report-prompt.txt",
-            },
-            "summarize_descriptions": {
-                "prompt": "summarize-descriptions-prompt.txt",
-            },
-            "claim_extraction": {
-                "enabled": True,
-            },
-            "snapshots": {
-                "graphml": True,
-            },
+            }
+
+    def _get_vector_store_config(self):
+        return {
+            "type": "azure_ai_search",
+            "collection_name": self.collection_name,
+            "title_column": "name",
+            "overwrite": True,
+            "api_key": os.getenv("SEARCH_SERVICE_API_KEY"),
+            "url": os.getenv("SEARCH_SERVICE_ENDPOINT"),
+            "audience": "https://search.azure.com",
         }
 
+    async def process(self):
+        config = self._get_config()
+        parameters = create_graphrag_config(config, ".")
+        pipeline_config = create_pipeline_config(parameters, True)
+
+        logger.info(f"Starting GraphRAG processing for index: {self.index_name}")
+        async for workflow_result in run_pipeline_with_config(
+            config_or_path=pipeline_config,
+            progress_reporter=PrintProgressReporter("Running GraphRAG pipeline..."),
+        ):
+            if workflow_result.errors:
+                logger.error(f"Errors found in GraphRAG workflow result for index {self.index_name}: {workflow_result.errors}")
+            else:
+                logger.info(f"GraphRAG processing completed successfully for index: {self.index_name}")
+
+
     def get_reports(self, entity_table_path: str, community_report_table_path: str, community_level: int) -> tuple[pd.DataFrame, pd.DataFrame]:
-        blob_service_client = BlobServiceClient.from_connection_string(self.config["storage"]["connection_string"])
+        config = self._get_config() 
+        blob_service_client = BlobServiceClient.from_connection_string(config["storage"]["connection_string"])
 
         def read_parquet_from_blob(blob_path):
             container_name, blob_name = blob_path.split('/', 3)[2:]
@@ -152,17 +150,6 @@ class GraphRagProcessor:
         report_df = read_parquet_from_blob(community_report_table_path)
         return report_df, entity_df
 
-    def process(self):
-        parameters = create_graphrag_config(self.config, ".")
-        pipeline_config = create_pipeline_config(parameters, True)
-
-        for workflow_result in run_pipeline_with_config(
-            config_or_path=pipeline_config,
-            progress_reporter=PrintProgressReporter("Running pipeline..."),
-        ):
-            if workflow_result.errors:
-                print("Errors found in workflow result:")
-                print(workflow_result.errors)
     async def global_query(self, query: str):
         ENTITY_TABLE = "output/create_final_nodes.parquet"
         COMMUNITY_REPORT_TABLE = "output/create_final_community_reports.parquet"
@@ -175,18 +162,18 @@ class GraphRagProcessor:
         id_col = 'community'
         report_df["title"] = [f"{self.index_name}<sep>{i}<sep>{t}" for i, t in zip(report_df[id_col], report_df["title"])]
 
-
+        config = self._get_config()
         llm = ChatOpenAI(
-            api_base=self.config["llm"]["api_base"],
-            model=self.config["llm"]["model"],
+            api_base=config["llm"]["api_base"],
+            model=config["llm"]["model"],
             api_type=OpenaiApiType.AzureOpenAI,
-            deployment_name=self.config["llm"]["deployment_name"],
-            api_version=self.config["llm"]["api_version"],
-            api_key=self.config["llm"]["api_key"],
-            max_retries=self.config["llm"]["max_retries"],
+            deployment_name=config["llm"]["deployment_name"],
+            api_version=config["llm"]["api_version"],
+            api_key=config["llm"]["api_key"],
+            max_retries=10,
         )
 
-        token_encoder = tiktoken.encoding_for_model(self.config["llm"]["model"])
+        token_encoder = tiktoken.encoding_for_model(config["llm"]["model"])
 
         context_builder = GlobalCommunityContext(
             community_reports=read_indexer_reports(report_df, entity_df, COMMUNITY_LEVEL),
@@ -211,10 +198,6 @@ class GraphRagProcessor:
         )
 
         result = await global_search.asearch(query=query)
-
-        print ("###############")
-        print (result)
-        print ("###############")
 
         processed_reports = []
         if isinstance(result.context_data.get("reports"), pd.DataFrame):
