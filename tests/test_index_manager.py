@@ -1,7 +1,4 @@
 import unittest
-
-from requests import patch
-from app.blob_service import create_index_containers
 from app.index_manager import IndexManager, IndexConfig, ContainerNameTooLongError, create_index_manager
 
 class TestIndexManager(unittest.TestCase):
@@ -44,6 +41,26 @@ class TestIndexManager(unittest.TestCase):
         manager = IndexManager(config)
         self.assertEqual(manager.get_reference_container(), "user1-index1-reference")
 
+    def test_get_lz_container(self):
+        config = IndexConfig("user1", "index1", True)
+        manager = IndexManager(config)
+        self.assertEqual(manager.get_lz_container(), "user1-index1-lz")
+
+    def test_get_grdata_container(self):
+        config = IndexConfig("user1", "index1", True)
+        manager = IndexManager(config)
+        self.assertEqual(manager.get_grdata_container(), "user1-index1-grdata")
+
+    def test_get_grrep_container(self):
+        config = IndexConfig("user1", "index1", True)
+        manager = IndexManager(config)
+        self.assertEqual(manager.get_grrep_container(), "user1-index1-grrep")
+
+    def test_get_grcache_container(self):
+        config = IndexConfig("user1", "index1", True)
+        manager = IndexManager(config)
+        self.assertEqual(manager.get_grcache_container(), "user1-index1-grcache")
+
     def test_get_search_index_name(self):
         config = IndexConfig("user1", "index1", True)
         manager = IndexManager(config)
@@ -53,7 +70,6 @@ class TestIndexManager(unittest.TestCase):
         config = IndexConfig("user1", "index1", True)
         manager = IndexManager(config)
         self.assertTrue(manager.user_has_access())
-
 
     def test_user_has_access_unrestricted(self):
         config = IndexConfig("user1", "index1", False)
@@ -106,15 +122,55 @@ class TestIndexManager(unittest.TestCase):
     def test_reference_suffix(self):
         self.assertEqual(IndexManager.REFERENCE_SUFFIX, "-reference")
 
+    def test_lz_suffix(self):
+        self.assertEqual(IndexManager.LZ_SUFFIX, "-lz")
+
+    def test_grdata_suffix(self):
+        self.assertEqual(IndexManager.GRDATA_SUFFIX, "-grdata")
+
+    def test_grrep_suffix(self):
+        self.assertEqual(IndexManager.GRREP_SUFFIX, "-grrep")
+
+    def test_grcache_suffix(self):
+        self.assertEqual(IndexManager.GRCACHE_SUFFIX, "-grcache")
+
     def test_create_base_container_name_edge_case(self):
-        config = IndexConfig("user1", "a" * (63 - len("user1-") - len("-ingestion")), True)
+        max_length = IndexManager.MAX_CONTAINER_NAME_LENGTH - max(
+            len(IndexManager.INGESTION_SUFFIX),
+            len(IndexManager.REFERENCE_SUFFIX),
+            len(IndexManager.LZ_SUFFIX),
+            len(IndexManager.GRDATA_SUFFIX),
+            len(IndexManager.GRREP_SUFFIX),
+            len(IndexManager.GRCACHE_SUFFIX)
+        )
+        config = IndexConfig("user1", "a" * (max_length - len("user1-")), True)
         manager = IndexManager(config)
-        self.assertEqual(len(manager.base_container_name), 63 - len("-ingestion"))
+        self.assertEqual(len(manager.base_container_name), max_length)
 
     def test_create_base_container_name_just_over_limit(self):
-        config = IndexConfig("user1", "a" * (64 - len("user1-") - len("-ingestion")), True)
+        max_length = IndexManager.MAX_CONTAINER_NAME_LENGTH - max(
+            len(IndexManager.INGESTION_SUFFIX),
+            len(IndexManager.REFERENCE_SUFFIX),
+            len(IndexManager.LZ_SUFFIX),
+            len(IndexManager.GRDATA_SUFFIX),
+            len(IndexManager.GRREP_SUFFIX),
+            len(IndexManager.GRCACHE_SUFFIX)
+        )
+        config = IndexConfig("user1", "a" * (max_length - len("user1-") + 1), True)
         with self.assertRaises(ContainerNameTooLongError):
             IndexManager(config)
+
+    def test_create_index_containers(self):
+        containers = IndexManager.create_index_containers("user1", "index1", True)
+        expected = [
+            "user1-index1-ingestion",
+            "user1-index1-reference",
+            "user1-index1-lz",
+            "user1-index1-grdata",
+            "user1-index1-grrep",
+            "user1-index1-grcache"
+        ]
+        self.assertEqual(containers, expected)
 
 if __name__ == '__main__':
     unittest.main()

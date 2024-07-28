@@ -7,6 +7,9 @@ import PyPDF2
 from io import BytesIO
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
+import asyncio
+
+from app.indexing_queue import queue_indexing_job
 
 from .utils import get_user_id
 from .blob_service import (
@@ -14,7 +17,7 @@ from .blob_service import (
     delete_file_from_blob, list_indexes, delete_index, initialize_blob_service,
     get_blob_url
 )
-from .queue_processor import queue_file_for_processing
+from .upload_queue import queue_file_for_processing
 from .ingestion_job import create_ingestion_job, check_job_status, delete_ingestion_index
 from .research import research_with_data
 from .chat_service import chat_with_data, refine_message
@@ -49,6 +52,7 @@ class RouteConfigurator:
     def _add_ask_route(self):
         self.app.route('/ask', methods=['POST'])(self._handle_ask)
 
+
     def _add_config_route(self):
         self.app.route('/config', methods=['GET'])(self._get_config)
 
@@ -72,11 +76,12 @@ class RouteConfigurator:
     def _add_pdf_route(self):
         self.app.route('/pdf/<index_name>/<path:filename>', methods=['GET'])(self._get_pdf)
 
-    def _handle_ask(self):
+    async def _handle_ask(self):
         user_id = get_user_id(request)
         data = request.json
         ask_service = self._get_ask_service()
-        response, status_code = ask_service.ask_question(data, user_id)
+        
+        response, status_code = await ask_service.ask_question(data, user_id)
         return jsonify(response), status_code
 
     def _get_indexes(self):
@@ -92,7 +97,7 @@ class RouteConfigurator:
             return jsonify({"error": "Operation not allowed"}), 403
 
         user_id = get_user_id(request)
-        data = request.json
+        data = request.get_json()
         index_config = self._validate_index_creation_data(data, user_id)
         
         if isinstance(index_config, tuple): 
@@ -230,13 +235,12 @@ class RouteConfigurator:
         index_manager = self._get_index_manager(user_id, index_name, is_restricted)
         if isinstance(index_manager, tuple):
             return index_manager
-
         ingestion_container = index_manager.get_ingestion_container()
-
         try:
-            result = create_ingestion_job(ingestion_container)
-            return jsonify(result), 202  
+            queue_indexing_job(ingestion_container, user_id, index_name, is_restricted)
+            return jsonify({"status": "initiated", "job_id": ingestion_container, "message": "Indexing job initiated successfully"}), 202
         except Exception as e:
+            print (f"Error initiating indexing job: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
     def _check_index_status(self, index_name: str):

@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict, Any, List, Tuple, Optional
 from functools import lru_cache
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -7,6 +8,7 @@ from langchain_openai import AzureChatOpenAI
 from langchain.chains import LLMChain
 from .index_manager import create_index_manager, ContainerNameTooLongError, IndexManager
 from .azure_openai import get_openai_config
+from .graphrag import GraphRagProcessor
 
 class AskService:
     def __init__(self, blob_service):
@@ -29,12 +31,27 @@ class AskService:
             api_key=config["AOAI_API_KEY"],
         )
 
-    def ask_question(self, data: Dict[str, Any], user_id: str) -> Tuple[Dict[str, Any], int]:
+    async def ask_question(self, data: Dict[str, Any], user_id: str) -> Tuple[Dict[str, Any], int]:
         try:
             self._validate_input(data)
-            index_manager = self._get_index_manager(user_id, data['indexName'], data['isRestricted'])
-            document_content = self._get_document_content(index_manager, data['fileName'])
-            answers = self._process_questions(document_content, data['questions'])
+          
+            use_graphrag = data.get('useGraphRag', False)
+            
+            if use_graphrag:
+                graphrag_processor = GraphRagProcessor(data['indexName'], user_id, data['isRestricted'])
+                answers = []
+                for question in data['questions']:
+                    response, context_data = await graphrag_processor.global_query(question)
+                    if "error" in context_data:
+                        answers.append({"question": question, "answer": response, "error": context_data["error"]})
+                    else:
+                        answers.append({"question": question, "answer": response, "context": context_data})
+        
+            else:
+                index_manager = self._get_index_manager(user_id, data['indexName'], data['isRestricted'])
+                document_content = self._get_document_content(index_manager, data['fileName'])
+                answers = self._process_questions(document_content, data['questions'])
+            
             return {"answers": answers}, 200
         except ValueError as e:
             print(e)
@@ -45,7 +62,9 @@ class AskService:
 
     @staticmethod
     def _validate_input(data: Dict[str, Any]) -> None:
-        required_fields = ['indexName', 'questions', 'fileName']
+        required_fields = ['indexName', 'questions']
+        if not data.get('useGraphRag', False):
+            required_fields.append('fileName')
         if not all(field in data for field in required_fields):
             raise ValueError("Missing required parameters")
 

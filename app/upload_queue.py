@@ -3,6 +3,7 @@ import json
 import time
 import logging
 import tempfile
+import asyncio
 from azure.storage.queue import QueueClient
 from azure.identity import DefaultAzureCredential
 import PyPDF2
