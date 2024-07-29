@@ -19,14 +19,23 @@ def create_container(blob_service_client: BlobServiceClient, container_name: str
     try:
         blob_service_client.create_container(container_name)
     except ResourceExistsError:
-        logging.info(f"Container '{container_name}' already exists.")
+        logging.debug(f"Container '{container_name}' already exists.")
 
 def create_index_containers(user_id: str, index_name: str, is_restricted: bool, blob_service_client: BlobServiceClient = None) -> List[str]:
     """Create containers for the index and return their names."""
     if blob_service_client is None:
         blob_service_client = initialize_blob_service()
     
-    container_names = IndexManager.create_index_containers(user_id, index_name, is_restricted)
+    index_manager = create_index_manager(user_id, index_name, is_restricted)
+    
+    container_names = [
+        index_manager.get_ingestion_container(),
+        index_manager.get_reference_container(),
+        index_manager.get_lz_container(),
+        index_manager.get_grdata_container(),
+        index_manager.get_grrep_container(),
+        index_manager.get_grcache_container()
+    ]
     
     for name in container_names:
         create_container(blob_service_client, name)
@@ -99,7 +108,14 @@ def delete_index(user_id: str, index_name: str, is_restricted: bool, blob_servic
     if blob_service_client is None:
         blob_service_client = initialize_blob_service()
     index_manager = create_index_manager(user_id, index_name, is_restricted)
-    container_names = [index_manager.get_ingestion_container(), index_manager.get_reference_container(), index_manager.get_lz_container()]
+    container_names = [
+        index_manager.get_ingestion_container(),
+        index_manager.get_reference_container(),
+        index_manager.get_lz_container(),
+        index_manager.get_grdata_container(),
+        index_manager.get_grrep_container(),
+        index_manager.get_grcache_container()
+    ]
     for container_name in container_names:
         container_client = blob_service_client.get_container_client(container_name)
         try:

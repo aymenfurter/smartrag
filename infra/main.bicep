@@ -43,6 +43,9 @@ param azureOpenAIEmbeddingModelCapacity int = 30
 @description('Name of Document Intelligence resource')
 param docIntelligenceName string = 'rerag-docintelligence-${resourceToken}'
 
+@description('Name of Cosmos DB Account')
+param cosmosDbAccountName string = 'cosmos-${resourceToken}'
+
 var tags = { 'environment': 'production' }
 
 // Resource Group
@@ -89,6 +92,7 @@ module openai 'core/ai/cognitiveservices.bicep' = {
           capacity: azureOpenAIEmbeddingModelCapacity
         }
       }
+      // TODO: Add 'whisper' and 'tts' for voice mode. 
     ]
   }
 }
@@ -136,6 +140,16 @@ module formrecognizer 'core/ai/cognitiveservices.bicep' = {
     location: 'eastus'
     tags: tags
     kind: 'FormRecognizer'
+  }
+}
+
+module cosmosDb 'core/database/cosmos-db.bicep' = {
+  name: 'cosmos-db'
+  scope: rg
+  params: {
+    cosmosDbName: cosmosDbAccountName
+    location: location
+    tags: tags
   }
 }
 
@@ -213,6 +227,10 @@ module app 'core/host/container-app.bicep' = {
         value: monitoring.outputs.applicationInsightsConnectionString
       }
       {
+        name: 'COSMOSDB_ENDPOINT'
+        value: cosmosDb.outputs.endpoint
+      }
+      {
         name: 'DOCUMENTINTELLIGENCE_KEY'
         secretRef: 'azure-formrecognizer-key'
       }
@@ -228,11 +246,16 @@ module app 'core/host/container-app.bicep' = {
         name: 'STORAGE_ACCOUNT_KEY'
         secretRef: 'azure-storage-key'
       }
+      {
+        name: 'COSMOSDB_KEY'
+        secretRef: 'azure-cosmosdb-key'
+      }
     ]
     formrecognizerName: formrecognizer.outputs.name
     searchName: search.outputs.name
     openaiName: openai.outputs.name
     storageAccountName: storage.outputs.name
+    cosmosDbAccountName: cosmosDb.outputs.name
   }
   dependsOn: [
     openai
@@ -241,9 +264,9 @@ module app 'core/host/container-app.bicep' = {
     formrecognizer
     containerApps
     monitoring
+    cosmosDb
   ]
 }
-
 
 // Role Assignments
 module searchServiceRoleOpenai 'core/security/role.bicep' = {
@@ -306,6 +329,20 @@ module storageQueueDataContributorRoleOpenAI 'core/security/role.bicep' = {
   }
 }
 
+module cosmosDbDataContributorRoleApp 'core/security/cosmos-role.bicep' = {
+  scope: rg
+  name: 'cosmosdb-data-contributor-role-app'
+  params: {
+    cosmosDbAccountId: cosmosDb.outputs.id
+    principalId: app.outputs.identityPrincipalId
+    roleDefinitionId: '00000000-0000-0000-0000-000000000002'
+  }
+  dependsOn: [
+    cosmosDb
+    app
+  ]
+}
+
 output AZURE_LOCATION string = location
 output AZURE_CONTAINER_ENVIRONMENT_NAME string = containerApps.outputs.environmentName
 output SERVICE_APP_NAME string = app.outputs.name
@@ -314,4 +351,4 @@ output AZURE_OPENAI_RESOURCE_ID string = openai.outputs.id
 output AZURE_SEARCH_RESOURCE_ID string = search.outputs.id
 output AZURE_STORAGE_RESOURCE_ID string = storage.outputs.id
 output AZURE_FORMRECOGNIZER_RESOURCE_ID string = formrecognizer.outputs.id
-
+output AZURE_COSMOSDB_RESOURCE_ID string = cosmosDb.outputs.id

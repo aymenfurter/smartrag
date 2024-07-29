@@ -1,7 +1,7 @@
 import React from 'react';
 import styled, { keyframes } from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faComments, faUpload, faMagnifyingGlass, faTrash, faSun, faMoon, faQuestion } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faUpload, faMagnifyingGlass, faTrash, faSun, faMoon, faQuestion, faMicrophone } from '@fortawesome/free-solid-svg-icons';
 import logo from './logo.png'; 
 import { ConfigContext } from './ConfigContext';
 import { useContext } from 'react';
@@ -41,11 +41,6 @@ const LogoContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 15px;
-`;
-
-const Logo = styled.img`
-  width: 60px;
-  height: 60px;
 `;
 
 const AppName = styled.div`
@@ -123,19 +118,22 @@ function Header({ activeSection, setActiveSection, toggleTheme, isDarkMode }) {
 
   const navItems = [
     { icon: faComments, text: 'Chat', section: 'chat' },
+    { icon: faMicrophone, text: 'Voice Chat', section: 'voicechat' },
     { icon: faQuestion, text: 'Ask', section: 'ask' },
     ...(!operationsRestricted ? [
       { icon: faUpload, text: 'Upload', section: 'upload' },
     ] : []),
     { icon: faMagnifyingGlass, text: 'Multi-Agent Research', section: 'research' },
-    { icon: faTrash, text: 'Clear', action: () => localStorage.removeItem('chatHistory') },
+    { icon: faTrash, text: 'Clear', action: () => {
+      localStorage.removeItem('chatHistory');
+      localStorage.removeItem('voiceChatHistory');
+    }},
   ];
 
   return (
     <HeaderContainer>
       <Nav>
         <LogoContainer>
-          <Logo src={logo} alt="SmartRAG Logo" />
           <AppName>
             <SmartText>smart</SmartText>
             <RagText>RAG</RagText>

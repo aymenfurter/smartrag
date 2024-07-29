@@ -4,8 +4,8 @@ from unittest.mock import patch, MagicMock
 from flask import Flask
 from werkzeug.datastructures import FileStorage
 from io import BytesIO
-from app.routes import RouteConfigurator, IndexConfig
-from app.index_manager import ContainerNameTooLongError
+from app.api.routes import RouteConfigurator, IndexConfig
+from app.integration.index_manager import ContainerNameTooLongError
 from flask_socketio import SocketIO
 
 class TestRouteConfigurator(unittest.TestCase):
@@ -35,8 +35,8 @@ class TestRouteConfigurator(unittest.TestCase):
         )
         self.route_configurator.configure_routes()
 
-    @patch('app.routes.get_user_id')
-    @patch('app.routes.list_indexes')
+    @patch('app.api.routes.get_user_id')
+    @patch('app.api.routes.list_indexes')
     def test_get_indexes(self, mock_list_indexes, mock_get_user_id):
         mock_get_user_id.return_value = 'test_user'
         mock_list_indexes.return_value = [{'name': 'index1', 'restricted': True}]
@@ -45,8 +45,8 @@ class TestRouteConfigurator(unittest.TestCase):
         self.assertIn('indexes', response.json)
         self.assertEqual(len(response.json['indexes']), 1)
 
-    @patch('app.routes.get_user_id')
-    @patch('app.routes.create_index_containers')
+    @patch('app.api.routes.get_user_id')
+    @patch('app.api.routes.create_index_containers')
     def test_create_index(self, mock_create_index_containers, mock_get_user_id):
         mock_get_user_id.return_value = 'test_user'
         mock_create_index_containers.return_value = ['container1', 'container2']
@@ -54,17 +54,17 @@ class TestRouteConfigurator(unittest.TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertIn('containers', response.json)
 
-    @patch('app.routes.get_user_id')
+    @patch('app.api.routes.get_user_id')
     def test_create_index_invalid_name(self, mock_get_user_id):
         mock_get_user_id.return_value = 'test_user'
         response = self.client.post('/indexes', json={'name': 'INVALID', 'is_restricted': True})
         self.assertEqual(response.status_code, 400)
         self.assertIn('error', response.json)
 
-    @patch('app.routes.get_user_id')
-    @patch('app.routes.create_index_manager')
-    @patch('app.routes.delete_index')
-    @patch('app.routes.delete_ingestion_index')
+    @patch('app.api.routes.get_user_id')
+    @patch('app.api.routes.create_index_manager')
+    @patch('app.api.routes.delete_index')
+    @patch('app.api.routes.delete_ingestion_index')
     def test_remove_index(self, mock_delete_ingestion_index, mock_delete_index, mock_create_index_manager, mock_get_user_id):
         mock_get_user_id.return_value = 'test_user'
         mock_index_manager = MagicMock()
@@ -77,8 +77,8 @@ class TestRouteConfigurator(unittest.TestCase):
         mock_delete_index.assert_called_once()
         mock_delete_ingestion_index.assert_called_once()
 
-    @patch('app.routes.get_user_id')
-    @patch('app.routes.create_index_manager')
+    @patch('app.api.routes.get_user_id')
+    @patch('app.api.routes.create_index_manager')
     def test_remove_index_unauthorized(self, mock_create_index_manager, mock_get_user_id):
         mock_get_user_id.return_value = 'test_user'
         mock_index_manager = MagicMock()
@@ -89,9 +89,9 @@ class TestRouteConfigurator(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
 
 
-    @patch('app.routes.get_user_id')
-    @patch('app.routes.create_index_manager')
-    @patch('app.routes.list_files_in_container')
+    @patch('app.api.routes.get_user_id')
+    @patch('app.api.routes.create_index_manager')
+    @patch('app.api.routes.list_files_in_container')
     def test_list_files(self, mock_list_files, mock_create_index_manager, mock_get_user_id):
         mock_get_user_id.return_value = 'test_user'
         mock_index_manager = MagicMock()
@@ -108,8 +108,8 @@ class TestRouteConfigurator(unittest.TestCase):
         self.assertEqual(len(response.json['files']), 2)
         mock_list_files.assert_called_once_with('reference_container', self.route_configurator.blob_service)
 
-    @patch('app.routes.get_user_id')
-    @patch('app.routes.create_index_manager')
+    @patch('app.api.routes.get_user_id')
+    @patch('app.api.routes.create_index_manager')
     def test_delete_file(self, mock_create_index_manager, mock_get_user_id):
         mock_get_user_id.return_value = 'test_user'
         mock_index_manager = MagicMock()
@@ -122,21 +122,21 @@ class TestRouteConfigurator(unittest.TestCase):
         response = self.client.delete('/indexes/testindex/files/file1')
         self.assertEqual(response.status_code, 200)
 
-    @patch('app.routes.get_user_id')
+    @patch('app.api.routes.get_user_id')
     def test_research(self, mock_get_user_id):
         mock_get_user_id.return_value = 'test_user'
         self.mock_research.return_value = MagicMock(status_code=200)
         response = self.client.post('/research', json={'question': 'test question'})
         self.assertEqual(response.status_code, 200)
 
-    @patch('app.routes.get_user_id')
+    @patch('app.api.routes.get_user_id')
     def test_chat(self, mock_get_user_id):
         mock_get_user_id.return_value = 'test_user'
         self.mock_chat_service.return_value = MagicMock(status_code=200)
         response = self.client.post('/chat', json={'message': 'test message'})
         self.assertEqual(response.status_code, 200)
 
-    @patch('app.routes.get_user_id')
+    @patch('app.api.routes.get_user_id')
     def test_refine(self, mock_get_user_id):
         mock_get_user_id.return_value = 'test_user'
         self.route_configurator.refine_service = MagicMock(return_value=MagicMock(status_code=200))
@@ -150,7 +150,7 @@ class TestRouteConfigurator(unittest.TestCase):
             self.assertIsInstance(result, tuple)
             self.assertEqual(result[1], 400)
 
-    @patch('app.routes.create_index_manager')
+    @patch('app.api.routes.create_index_manager')
     def test_get_index_manager_valid(self, mock_create_index_manager):
         mock_index_manager = MagicMock()
         mock_index_manager.user_has_access.return_value = True
@@ -160,7 +160,7 @@ class TestRouteConfigurator(unittest.TestCase):
             result = self.route_configurator._get_index_manager('test_user', 'testindex', True)
             self.assertEqual(result, mock_index_manager)
 
-    @patch('app.routes.create_index_manager')
+    @patch('app.api.routes.create_index_manager')
     def test_get_index_manager_unauthorized(self, mock_create_index_manager):
         mock_index_manager = MagicMock()
         mock_index_manager.user_has_access.return_value = False
@@ -171,7 +171,7 @@ class TestRouteConfigurator(unittest.TestCase):
             self.assertIsInstance(result, tuple)
             self.assertEqual(result[1], 403)
 
-    @patch('app.routes.create_index_manager')
+    @patch('app.api.routes.create_index_manager')
     def test_get_index_manager_name_too_long(self, mock_create_index_manager):
         mock_create_index_manager.side_effect = ContainerNameTooLongError("Name too long")
         

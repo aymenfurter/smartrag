@@ -1,7 +1,7 @@
 import os
 import re
 from typing import List
-from .azure_openai import get_azure_openai_client
+from app.integration.azure_openai import get_azure_openai_client
 
 ENABLE_TABLE_SUMMARY = True
 ENABLE_ROW_DESCRIPTIONS = False

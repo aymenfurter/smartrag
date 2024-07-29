@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 from unittest import mock 
-from app.table_postprocessor import *
+from app.ingestion.table_postprocessor import *
 
 class TestTablePostprocessor(unittest.TestCase):
     def test_basic_extraction(self):
@@ -29,7 +29,7 @@ class TestTablePostprocessor(unittest.TestCase):
         expected_output = ["| Outer | Table |\n|-------|-------|\n| A     | B     |\n\n", "| Inner | Table |\n|-------|-------|\n| C     | D     |\n\n"]
         self.assertEqual(extract_tables(markdown_content), expected_output)
 
-    @patch('app.table_postprocessor.llm')
+    @patch('app.ingestion.table_postprocessor.llm')
     def test_generate_table_summary(self, mock_llm):
         # Test 1: Basic table summary
         mock_llm.return_value = "This is a summary of the table."
@@ -61,7 +61,7 @@ class TestTablePostprocessor(unittest.TestCase):
         expected_output = "\n\n<!-- Table Summary: This table contains multiline content. -->\n"
         self.assertEqual(generate_table_summary(table_content), expected_output)
 
-    @patch('app.table_postprocessor.llm')
+    @patch('app.ingestion.table_postprocessor.llm')
     def test_generate_qa_pairs(self, mock_llm):
         # Test 1: Basic Q&A pair generation
         mock_llm.return_value = "Q1: What is John's age?\nA1: 30"

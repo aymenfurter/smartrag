@@ -84,6 +84,13 @@ param openaiName string
 @description('The name of the Storage Account')
 param storageAccountName string
 
+@description('The name of the Cosmos DB account')
+param cosmosDbAccountName string
+
+resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2021-04-15' existing = {
+  name: cosmosDbAccountName
+}
+
 resource userIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = if (!empty(identityName)) {
   name: identityName
 }
@@ -123,6 +130,10 @@ var secureSecrets = [
   {
     name: 'azure-storage-key'
     value: storageAccount.listKeys().keys[0].value
+  }
+  {
+    name: 'azure-cosmosdb-key'
+    value: cosmosDbAccount.listKeys().primaryMasterKey
   }
 ]
 

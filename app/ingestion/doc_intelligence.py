@@ -8,7 +8,7 @@ from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import ContentFormat
 from azure.core.credentials import AzureKeyCredential
 from PIL import Image
-from .azure_openai import get_azure_openai_client, analyze_image
+from app.integration.azure_openai import get_azure_openai_client, analyze_image
 from .table_postprocessor import enhance_markdown
 
 def refine_figures(content, png_path: str) -> str:

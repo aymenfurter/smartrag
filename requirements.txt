@@ -18,3 +18,8 @@ tenacity
 flask-socketio
 gunicorn
 gevent
+graphrag==0.1.1
+pandas
+adlfs
+fsspec
+azure-data-tables

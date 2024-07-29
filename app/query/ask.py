@@ -1,12 +1,15 @@
+import asyncio
 from typing import Dict, Any, List, Tuple, Optional
 from functools import lru_cache
+from app.integration.graphrag_config import GraphRagConfig
+from app.query.graphrag_query import GraphRagQuery
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
 from langchain_openai import AzureChatOpenAI
 from langchain.chains import LLMChain
-from .index_manager import create_index_manager, ContainerNameTooLongError, IndexManager
-from .azure_openai import get_openai_config
+from app.integration.index_manager import create_index_manager, ContainerNameTooLongError, IndexManager
+from app.integration.azure_openai import get_openai_config
 
 class AskService:
     def __init__(self, blob_service):
@@ -29,12 +32,28 @@ class AskService:
             api_key=config["AOAI_API_KEY"],
         )
 
-    def ask_question(self, data: Dict[str, Any], user_id: str) -> Tuple[Dict[str, Any], int]:
+    async def ask_question(self, data: Dict[str, Any], user_id: str) -> Tuple[Dict[str, Any], int]:
         try:
             self._validate_input(data)
-            index_manager = self._get_index_manager(user_id, data['indexName'], data['isRestricted'])
-            document_content = self._get_document_content(index_manager, data['fileName'])
-            answers = self._process_questions(document_content, data['questions'])
+          
+            use_graphrag = data.get('useGraphRag', False)
+            
+            if use_graphrag:
+                config = GraphRagConfig(data['indexName'], user_id, data['isRestricted'])
+                graphrag_query = GraphRagQuery(config)
+                answers = []
+                for question in data['questions']:
+                    try:
+                        response, context_data = await graphrag_query.global_query(question)
+                        answers.append({"question": question, "answer": response, "context": context_data})
+                    except Exception as e:
+                        answers.append({"question": question, "answer": "An error occurred while processing this question.", "error": str(e)})
+            
+            else:
+                index_manager = self._get_index_manager(user_id, data['indexName'], data['isRestricted'])
+                document_content = self._get_document_content(index_manager, data['fileName'])
+                answers = self._process_questions(document_content, data['questions'])
+            
             return {"answers": answers}, 200
         except ValueError as e:
             print(e)
@@ -45,7 +64,9 @@ class AskService:
 
     @staticmethod
     def _validate_input(data: Dict[str, Any]) -> None:
-        required_fields = ['indexName', 'questions', 'fileName']
+        required_fields = ['indexName', 'questions']
+        if not data.get('useGraphRag', False):
+            required_fields.append('fileName')
         if not all(field in data for field in required_fields):
             raise ValueError("Missing required parameters")
 
