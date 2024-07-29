@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import Header from './components/Header';
 import ChatSection from './components/ChatSection';
+import VoiceSection from './components/VoiceSection';
 import UploadSection from './components/UploadSection';
 import ResearchSection from './components/ResearchSection';
 import AskSection from './components/AskSection';
@@ -143,6 +144,12 @@ function App({ toggleTheme, isDarkMode }) {
                     indexName={selectedIndex[0]} 
                     isRestricted={selectedIndex[1]} 
                     onStartResearch={handleStartResearch}
+                  />
+                )}
+                {activeSection === 'voicechat' && (
+                  <VoiceSection 
+                    indexName={selectedIndex[0]} 
+                    isRestricted={selectedIndex[1]}
                   />
                 )}
                 {activeSection === 'ask' && (

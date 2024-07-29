@@ -92,6 +92,7 @@ module openai 'core/ai/cognitiveservices.bicep' = {
           capacity: azureOpenAIEmbeddingModelCapacity
         }
       }
+      // TODO: Add 'whisper' and 'tts' for voice mode. 
     ]
   }
 }

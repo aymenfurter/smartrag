@@ -5,12 +5,12 @@ from werkzeug.utils import secure_filename
 import os
 import PyPDF2
 from io import BytesIO
+import base64
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
 import asyncio
 
 from app.ingestion.indexing_queue import queue_indexing_job
-
 from app.integration.identity import get_user_id
 from app.integration.blob_service import (
     upload_file_to_lz, create_index_containers, list_files_in_container, 
@@ -25,18 +25,20 @@ from app.integration.index_manager import create_index_manager, ContainerNameToo
 from app.integration.identity import easyauth_enabled
 from app.query.ask import AskService 
 from app.ingestion.pdf_processing import get_pdf_page_count
+from app.query.voice_chat_service import intro_message, voice_chat_with_data
 
 def are_operations_restricted():
     return os.getenv('RESTRICT_OPERATIONS', 'false').lower() == 'true'
 
 class RouteConfigurator:
-    def __init__(self, app: Flask, socketio: SocketIO, blob_service=None, ingestion_job=None, research=None, chat_service=None):
+    def __init__(self, app: Flask, socketio: SocketIO, blob_service=None, ingestion_job=None, research=None, chat_service=None, voice_chat_service=None):
         self.app = app
         self.socketio = socketio
         self.blob_service = blob_service or initialize_blob_service()
         self.ingestion_job = ingestion_job or create_ingestion_job
         self.research = research or research_with_data
         self.chat_service = chat_service or chat_with_data
+        self.voice_chat_service = voice_chat_service or voice_chat_with_data
         self.refine_service = refine_message
         self.operations_restricted = are_operations_restricted()
 
@@ -47,11 +49,14 @@ class RouteConfigurator:
         self._add_pdf_route()
         self._add_config_route()
         self._add_ask_route()
+        self._add_voice_chat_route()
+        self._add_intro_route()
+
         return self.app
+
 
     def _add_ask_route(self):
         self.app.route('/ask', methods=['POST'])(self._handle_ask)
-
 
     def _add_config_route(self):
         self.app.route('/config', methods=['GET'])(self._get_config)
@@ -73,8 +78,24 @@ class RouteConfigurator:
         self.app.route('/chat', methods=['POST'])(self._chat)
         self.app.route('/refine', methods=['POST'])(self._refine)
 
+    def _add_voice_chat_route(self):
+        @self.app.route('/voice_chat', methods=['POST'])
+        def voice_chat():
+            user_id = get_user_id(request)
+            return voice_chat_with_data(request.form, user_id)
+
+    def _add_intro_route(self):
+        self.app.route('/intro', methods=['POST'])(self._intro)
+
+    def _voice_chat(self):
+        user_id = get_user_id(request)
+        return self.voice_chat_service(request.form, user_id)
+
     def _add_pdf_route(self):
         self.app.route('/pdf/<index_name>/<path:filename>', methods=['GET'])(self._get_pdf)
+
+    def _intro(self):
+        return intro_message()
 
     async def _handle_ask(self):
         user_id = get_user_id(request)
@@ -159,20 +180,15 @@ class RouteConfigurator:
 
         filename = secure_filename(file.filename)
         
-        # Save file to memory
         file_bytes = file.read()
         file_buffer = BytesIO(file_bytes)
 
-        # Get number of pages
         num_pages = get_pdf_page_count(file_buffer)
 
-        # Reset buffer position
         file_buffer.seek(0)
 
-        # Upload to landing zone
         blob_url = upload_file_to_lz(file_buffer, filename, user_id, index_name, is_restricted, self.blob_service)
 
-        # Queue the file for processing
         queue_file_for_processing(filename, user_id, index_name, is_restricted, num_pages, blob_url, is_multimodal)
 
         return jsonify({
@@ -240,7 +256,7 @@ class RouteConfigurator:
             queue_indexing_job(ingestion_container, user_id, index_name, is_restricted)
             return jsonify({"status": "initiated", "job_id": ingestion_container, "message": "Indexing job initiated successfully"}), 202
         except Exception as e:
-            print (f"Error initiating indexing job: {str(e)}")
+            print(f"Error initiating indexing job: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
     def _check_index_status(self, index_name: str):
@@ -263,6 +279,11 @@ class RouteConfigurator:
         user_id = get_user_id(request)
         data = request.json
         return self.chat_service(data, user_id)
+
+    def _voice_chat(self):
+        user_id = get_user_id(request)
+        data = request.json
+        return self.voice_chat_service(data, user_id)
 
     def _refine(self):
         user_id = get_user_id(request)
@@ -300,7 +321,6 @@ class RouteConfigurator:
         except Exception as e:
             self.app.logger.error(f"Error retrieving PDF: {str(e)}")
             return jsonify({"error": f"Error retrieving PDF: {str(e)}"}), 500
-
 
     def _validate_index_creation_data(self, data, user_id):
         index_name = data.get('name')

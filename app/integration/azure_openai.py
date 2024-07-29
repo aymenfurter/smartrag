@@ -5,6 +5,9 @@ from flask import Response
 from openai import AzureOpenAI
 import numpy as np
 
+from dotenv import load_dotenv
+load_dotenv()
+
 
 def get_azure_openai_client(api_key: str = None, api_version: str = None, azure_endpoint: str = None) -> AzureOpenAI:
     """Create and return an AzureOpenAI client."""
@@ -75,7 +78,9 @@ def get_openai_config() -> Dict[str, str]:
         "AOAI_API_KEY": os.environ.get('AOAI_API_KEY', ''),
         "AZURE_OPENAI_DEPLOYMENT_ID": os.environ.get('AZURE_OPENAI_DEPLOYMENT_NAME', ''),
         "SEARCH_SERVICE_ENDPOINT": os.environ.get('SEARCH_SERVICE_ENDPOINT', ''),
-        "SEARCH_SERVICE_API_KEY": os.environ.get('SEARCH_SERVICE_API_KEY', '')
+        "SEARCH_SERVICE_API_KEY": os.environ.get('SEARCH_SERVICE_API_KEY', ''),
+        "AZURE_TTS_DEPLOYMENT_NAME": 'tts',
+        "AZURE_TTS_MODEL_NAME": "tts"
     }
 
 def get_openai_embedding(text: str) -> Dict[str, Any]:
