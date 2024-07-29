@@ -1,10 +1,10 @@
 import unittest
 from unittest.mock import patch, MagicMock
 
-from app import azure_openai
+from app.integration import azure_openai
 
 class TestAzureOpenAI(unittest.TestCase):
-    @patch('app.azure_openai.AzureOpenAI')
+    @patch('app.integration.azure_openai.AzureOpenAI')
     @patch.dict('os.environ', {'AZURE_OPENAI_DEPLOYMENT_NAME': 'test-model'})
     def test_analyze_image(self, mock_azure_openai):
         mock_client = MagicMock()
@@ -29,7 +29,7 @@ class TestAzureOpenAI(unittest.TestCase):
         self.assertEqual(data_source["parameters"]["key"], "key")
         self.assertEqual(data_source["parameters"]["index_name"], "index")
 
-    @patch('app.azure_openai.requests.post')
+    @patch('app.integration.azure_openai.requests.post')
     def test_get_response(self, mock_post):
         mock_response = MagicMock()
         mock_response.json.return_value = {"result": "success"}
@@ -38,7 +38,7 @@ class TestAzureOpenAI(unittest.TestCase):
         result = azure_openai.get_response("url", {}, {})
         self.assertEqual(result, {"result": "success"})
 
-    @patch('app.azure_openai.requests.post')
+    @patch('app.integration.azure_openai.requests.post')
     def test_stream_response(self, mock_post):
         mock_response = MagicMock()
         mock_response.iter_lines.return_value = [b'{"chunk": 1}', b'{"chunk": 2}']

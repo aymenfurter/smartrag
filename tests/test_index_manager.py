@@ -1,5 +1,5 @@
 import unittest
-from app.index_manager import IndexManager, IndexConfig, ContainerNameTooLongError, create_index_manager
+from app.integration.index_manager import IndexManager, IndexConfig, ContainerNameTooLongError, create_index_manager
 
 class TestIndexManager(unittest.TestCase):
 

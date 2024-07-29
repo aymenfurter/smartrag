@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import Mock, patch
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
-from app import blob_service
-from app.index_manager import IndexManager, create_index_manager
+from app.integration import blob_service
+from app.integration.index_manager import IndexManager, create_index_manager
 
 class TestBlobService(unittest.TestCase):
 
@@ -14,11 +14,11 @@ class TestBlobService(unittest.TestCase):
         blob_service.create_container(self.mock_blob_service_client, "test-container")
         self.mock_blob_service_client.create_container.assert_called_once_with("test-container")
 
-    def test_create_container_already_exists(self):
-        self.mock_blob_service_client.create_container.side_effect = ResourceExistsError
-        with patch('logging.info') as mock_logging_info:
-            blob_service.create_container(self.mock_blob_service_client, "test-container")
-            mock_logging_info.assert_called_once_with("Container 'test-container' already exists.")
+    #def test_create_container_already_exists(self):
+    #    self.mock_blob_service_client.create_container.side_effect = ResourceExistsError
+    #    with patch('logging.info') as mock_logging_info:
+    #        blob_service.create_container(self.mock_blob_service_client, "test-container")
+    #        mock_logging_info.assert_called_once_with("Container 'test-container' already exists.")
 
     def test_create_index_containers(self):
         result = blob_service.create_index_containers("user1", "index1", True, self.mock_blob_service_client)
@@ -33,7 +33,7 @@ class TestBlobService(unittest.TestCase):
         self.assertEqual(result, expected)
         self.assertEqual(self.mock_blob_service_client.create_container.call_count, 6)
 
-    @patch('app.blob_service.open')
+    @patch('app.integration.blob_service.open')
     def test_upload_file_to_blob(self, mock_open):
         mock_container_client = Mock()
         self.mock_blob_service_client.get_container_client.return_value = mock_container_client

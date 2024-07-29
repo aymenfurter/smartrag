@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import patch, Mock
 from flask import Flask
-from app.chat_service import chat_with_data, refine_message, create_refine_messages, process_citation
-from app.index_manager import IndexManager, IndexConfig, ContainerNameTooLongError
+from app.query.chat_service import chat_with_data, refine_message, create_refine_messages, process_citation
+from app.integration.index_manager import IndexManager, IndexConfig, ContainerNameTooLongError
 
 class TestChatService(unittest.TestCase):
 
@@ -10,9 +10,9 @@ class TestChatService(unittest.TestCase):
         self.app = Flask(__name__)
         self.app.config['TESTING'] = True
 
-    @patch('app.chat_service.create_refine_messages')
-    @patch('app.chat_service.create_payload')
-    @patch('app.chat_service.stream_response')
+    @patch('app.query.chat_service.create_refine_messages')
+    @patch('app.query.chat_service.create_payload')
+    @patch('app.query.chat_service.stream_response')
     def test_refine_message_success(self, mock_stream_response, mock_create_payload, mock_create_refine_messages):
         mock_create_refine_messages.return_value = ['test_refine_message']
         mock_create_payload.return_value = {'test': 'payload'}
@@ -36,9 +36,9 @@ class TestChatService(unittest.TestCase):
         self.assertEqual(response, 'stream_response')
         mock_stream_response.assert_called_once()
 
-    @patch('app.chat_service.create_refine_messages')
-    @patch('app.chat_service.create_payload')
-    @patch('app.chat_service.stream_response')
+    @patch('app.query.chat_service.create_refine_messages')
+    @patch('app.query.chat_service.create_payload')
+    @patch('app.query.chat_service.stream_response')
     def test_refine_message_unauthorized(self, mock_stream_response, mock_create_payload, mock_create_refine_messages):
         with self.app.test_request_context():
             data = {
@@ -88,8 +88,8 @@ class TestChatService(unittest.TestCase):
         self.assertIn('error', response.json)
         self.assertIn('too long', response.json['error'])
 
-    @patch('app.chat_service.initialize_blob_service')
-    @patch('app.chat_service.process_citation')
+    @patch('app.query.chat_service.initialize_blob_service')
+    @patch('app.query.chat_service.process_citation')
     def test_create_refine_messages(self, mock_process_citation, mock_initialize_blob_service):
         mock_container_client = Mock()
         mock_initialize_blob_service.return_value.get_container_client.return_value = mock_container_client

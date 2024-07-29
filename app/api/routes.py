@@ -9,22 +9,22 @@ from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
 import asyncio
 
-from app.indexing_queue import queue_indexing_job
+from app.ingestion.indexing_queue import queue_indexing_job
 
-from .utils import get_user_id
-from .blob_service import (
+from app.integration.identity import get_user_id
+from app.integration.blob_service import (
     upload_file_to_lz, create_index_containers, list_files_in_container, 
     delete_file_from_blob, list_indexes, delete_index, initialize_blob_service,
     get_blob_url
 )
-from .upload_queue import queue_file_for_processing
-from .ingestion_job import create_ingestion_job, check_job_status, delete_ingestion_index
-from .research import research_with_data
-from .chat_service import chat_with_data, refine_message
-from .index_manager import create_index_manager, ContainerNameTooLongError, IndexConfig
-from .utils import easyauth_enabled
-from .ask import AskService 
-from .pdf_processing import get_pdf_page_count
+from app.ingestion.upload_queue import queue_file_for_processing
+from app.ingestion.ingestion_job import create_ingestion_job, check_job_status, delete_ingestion_index
+from app.query.research import research_with_data
+from app.query.chat_service import chat_with_data, refine_message
+from app.integration.index_manager import create_index_manager, ContainerNameTooLongError, IndexConfig
+from app.integration.identity import easyauth_enabled
+from app.query.ask import AskService 
+from app.ingestion.pdf_processing import get_pdf_page_count
 
 def are_operations_restricted():
     return os.getenv('RESTRICT_OPERATIONS', 'false').lower() == 'true'

@@ -43,11 +43,6 @@ const LogoContainer = styled.div`
   gap: 15px;
 `;
 
-const Logo = styled.img`
-  width: 60px;
-  height: 60px;
-`;
-
 const AppName = styled.div`
   font-family: 'Poppins', sans-serif;
   font-size: 42px;
@@ -135,7 +130,6 @@ function Header({ activeSection, setActiveSection, toggleTheme, isDarkMode }) {
     <HeaderContainer>
       <Nav>
         <LogoContainer>
-          <Logo src={logo} alt="SmartRAG Logo" />
           <AppName>
             <SmartText>smart</SmartText>
             <RagText>RAG</RagText>

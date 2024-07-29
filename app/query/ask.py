@@ -1,14 +1,15 @@
 import asyncio
 from typing import Dict, Any, List, Tuple, Optional
 from functools import lru_cache
+from app.integration.graphrag_config import GraphRagConfig
+from app.query.graphrag_query import GraphRagQuery
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
 from langchain_openai import AzureChatOpenAI
 from langchain.chains import LLMChain
-from .index_manager import create_index_manager, ContainerNameTooLongError, IndexManager
-from .azure_openai import get_openai_config
-from .graphrag import GraphRagProcessor
+from app.integration.index_manager import create_index_manager, ContainerNameTooLongError, IndexManager
+from app.integration.azure_openai import get_openai_config
 
 class AskService:
     def __init__(self, blob_service):
@@ -38,15 +39,16 @@ class AskService:
             use_graphrag = data.get('useGraphRag', False)
             
             if use_graphrag:
-                graphrag_processor = GraphRagProcessor(data['indexName'], user_id, data['isRestricted'])
+                config = GraphRagConfig(data['indexName'], user_id, data['isRestricted'])
+                graphrag_query = GraphRagQuery(config)
                 answers = []
                 for question in data['questions']:
-                    response, context_data = await graphrag_processor.global_query(question)
-                    if "error" in context_data:
-                        answers.append({"question": question, "answer": response, "error": context_data["error"]})
-                    else:
+                    try:
+                        response, context_data = await graphrag_query.global_query(question)
                         answers.append({"question": question, "answer": response, "context": context_data})
-        
+                    except Exception as e:
+                        answers.append({"question": question, "answer": "An error occurred while processing this question.", "error": str(e)})
+            
             else:
                 index_manager = self._get_index_manager(user_id, data['indexName'], data['isRestricted'])
                 document_content = self._get_document_content(index_manager, data['fileName'])

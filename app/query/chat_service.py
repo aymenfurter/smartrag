@@ -2,9 +2,9 @@ import base64
 from io import BytesIO
 from typing import Dict, Any, List, Tuple
 from flask import jsonify, Response
-from .blob_service import initialize_blob_service
-from .azure_openai import create_payload, create_data_source, stream_response, get_openai_config
-from .index_manager import create_index_manager, ContainerNameTooLongError
+from app.integration.blob_service import initialize_blob_service
+from app.integration.azure_openai import create_payload, create_data_source, stream_response, get_openai_config
+from app.integration.index_manager import create_index_manager, ContainerNameTooLongError
 import requests
 
 def chat_with_data(data: Dict[str, Any], user_id: str, config: Dict[str, str] = None) -> Response:

@@ -5,8 +5,8 @@ import queue
 from typing import Dict, Any, Callable, Annotated, Generator, Union
 from flask import Response
 from autogen import AssistantAgent, UserProxyAgent, GroupChat, GroupChatManager 
-from .azure_openai import create_payload, create_data_source, get_openai_config, get_openai_embedding, calculate_cosine_similarity
-from .index_manager import create_index_manager, ContainerNameTooLongError
+from app.integration.azure_openai import create_payload, create_data_source, get_openai_config, get_openai_embedding, calculate_cosine_similarity
+from app.integration.index_manager import create_index_manager, ContainerNameTooLongError
 import time
 import requests
 import numpy as np

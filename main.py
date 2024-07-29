@@ -1,16 +1,14 @@
-# main.py
-
 import os
 from flask import Flask, send_from_directory
 from flask_socketio import SocketIO
 from flask_cors import CORS
 from pathlib import Path
 from dotenv import load_dotenv
-from app.routes import configure_routes
+from app.api.routes import configure_routes
 import threading
-from app.upload_queue import process_queue_messages
-from app.indexing_queue import process_indexing_queue
-from app.ingestion_job import process_indexing_job
+from app.ingestion.upload_queue import process_queue_messages
+from app.ingestion.indexing_queue import process_indexing_queue
+from app.ingestion.ingestion_job import process_indexing_job
 import asyncio
 
 load_dotenv()
