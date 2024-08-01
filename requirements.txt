@@ -1,4 +1,4 @@
-flask
+flask[async]
 python-dotenv
 azure-identity
 azure-storage-blob
