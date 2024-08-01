@@ -52,6 +52,8 @@ SmartRAG can be easily deployed using the Azure Developer CLI (azd):
    ```
    azd up
    ```
+   
+5. Some featurse may not be available until the app is restarted once.
 
 ## Voice Mode Deployment Considerations
 
