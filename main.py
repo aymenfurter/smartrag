@@ -47,7 +47,4 @@ indexing_queue_processor_thread = threading.Thread(target=start_indexing_queue_p
 indexing_queue_processor_thread.start()
 
 if __name__ == '__main__':
-    if os.environ.get('MACOS'):
-        socketio.run(app, debug=True, use_reloader=True)
-    else:
-        socketio.run(app, debug=False, use_reloader=False)
+    socketio.run(app, debug=False, use_reloader=False)
