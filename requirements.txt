@@ -23,3 +23,7 @@ pandas
 adlfs
 fsspec
 azure-data-tables
+flask[async]
+gevent-websocket
+asgiref
+nest_asyncio

@@ -35,10 +35,10 @@ param azureAISearchName string = 'search-${resourceToken}'
 param storageAccountName string = 'str${resourceToken}'
 
 @description('Azure OpenAI Model Capacity')
-param azureOpenAIModelCapacity int = 30
+param azureOpenAIModelCapacity int = 150
 
 @description('Azure OpenAI Embedding Model Capacity')
-param azureOpenAIEmbeddingModelCapacity int = 30
+param azureOpenAIEmbeddingModelCapacity int = 250
 
 @description('Name of Document Intelligence resource')
 param docIntelligenceName string = 'rerag-docintelligence-${resourceToken}'
@@ -92,7 +92,30 @@ module openai 'core/ai/cognitiveservices.bicep' = {
           capacity: azureOpenAIEmbeddingModelCapacity
         }
       }
-      // TODO: Add 'whisper' and 'tts' for voice mode. 
+      {
+        name: 'whisper'
+        model: {
+          format: 'OpenAI'
+          name: 'whisper'
+          version: '001'
+        }
+        sku: {
+          name: 'Standard'
+          capacity: 3 
+        }
+      }
+      {
+        name: 'tts'
+        model: {
+          format: 'OpenAI'
+          name: 'tts'
+          version: '001'
+        }
+        sku: {
+          name: 'Standard'
+          capacity: 3 
+        }
+      } 
     ]
   }
 }
@@ -186,7 +209,7 @@ module app 'core/host/container-app.bicep' = {
     name: '${environmentName}-app'
     location: location
     identityType: 'SystemAssigned'
-    imageName: 'ghcr.io/aymenfurter/smartrag/smartrag:4f15ef573805baae224f42bf60c9ac1176a563e8'
+    imageName: 'ghcr.io/aymenfurter/smartrag/smartrag:aa7ab61b192a35e944e490e9f0cd2591ee2fcd58'
     tags: { 'azd-service-name': 'app' }
     containerAppsEnvironmentName: containerApps.outputs.environmentName
     env: [

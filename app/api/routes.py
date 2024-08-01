@@ -1,5 +1,5 @@
 from typing import Tuple
-from flask import Flask, request, jsonify, Response, send_file
+from flask import Flask, request, jsonify, Response, send_file, current_app
 from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
 import os
@@ -54,7 +54,6 @@ class RouteConfigurator:
 
         return self.app
 
-
     def _add_ask_route(self):
         self.app.route('/ask', methods=['POST'])(self._handle_ask)
 
@@ -97,12 +96,17 @@ class RouteConfigurator:
     def _intro(self):
         return intro_message()
 
-    async def _handle_ask(self):
+    def _handle_ask(self):
         user_id = get_user_id(request)
         data = request.json
         ask_service = self._get_ask_service()
         
-        response, status_code = await ask_service.ask_question(data, user_id)
+        async def async_ask():
+            return await ask_service.ask_question(data, user_id)
+        
+        loop = asyncio.get_event_loop()
+        response, status_code = loop.run_until_complete(async_ask())
+        
         return jsonify(response), status_code
 
     def _get_indexes(self):
@@ -161,8 +165,6 @@ class RouteConfigurator:
             delete_index(user_id, index_name, is_restricted)
         except Exception as e:
             deletion_errors.append(f"Error deleting main index: {str(e)}")
-
-            
         
         try:
             delete_ingestion_index(index_manager.get_ingestion_container())

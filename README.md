@@ -4,7 +4,7 @@
 <div align="center">
     <img src="assets/multi-agent.png">
 
-  <h1 align="center">Elevating RAG with Multi-Agent Systems</h1>
+  <h1 align="center">SmartRAG: Elevating RAG with Multi-Agent Systems</h1>
   <p align="center">
     🐞 <a href="https://github.com/aymenfurter/smartrag/issues">Report Bug</a>
     ·
@@ -13,7 +13,7 @@
   <br/> 
   <p>
   <a href="https://github.com/aymenfurter/smartrag/actions/workflows/python-tests.yml">
-    <img height="30" src="https://github.com/aymenfurter/smartrag/actions/workflows/python-tests.yml/badge.svg" alt="Python Tests"></a>&nbsp; <a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Faymenfurter%2Fsmartrag%2Fdeployment%2Finfrastructure%2Fdeployment.json">
+    <img height="30" src="https://github.com/aymenfurter/smartrag/actions/workflows/python-tests.yml/badge.svg" alt="Python Tests"></a>&nbsp; <a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Faymenfurter%2Fsmartrag%2Fmain%2Finfrastructure%2Fdeployment.json">
   <img height="30" src="https://aka.ms/deploytoazurebutton" alt="Deploy to Azure">
 </a>
   </p>
@@ -22,34 +22,75 @@
 
 ## In the Wake of the Generative AI Revolution
 
-We've seen a surge in GenAI-powered apps. While these apps promise a completely new way to interact with computers, they often don't meet user expectations. Here are my thoughts on improving Retrieval-Augmented Generation (RAG) applications, starting with better indexing and exploring the exciting potential of multi-agent systems. I've built this demonstration app called "SmartRAG" that showcases these concepts.
+We've seen a surge in GenAI-powered apps. While these apps promise a completely new way to interact with computers, they often don't meet user expectations. SmartRAG is a demonstration app that showcases various concepts to improve Retrieval-Augmented Generation (RAG) applications.
 
-# Multi-Agent Systems for RAG
+## Main Features
 
+1. **Multiple Query Approaches**: Explore different data ingestion and querying methods, from simple and fast Azure OYD to the advanced GraphRAG approach.
 
-While these indexing improvements significantly enhance the retrieval capabilities of RAG applications, sometimes a single question-answer interaction isn't sufficient for complex queries. This is where multi-agent systems come into play.
+2. **Voice Mode**: Utilize Azure OpenAI's Text-to-Speech (TTS) and Whisper for Speech-to-Text, enabling natural voice conversations.
 
-SmartRAG has an experimental feature called "Multi-Agent Research". Using Microsoft's [AutoGen](https://microsoft.github.io/autogen/) framework, this feature creates an ensemble of AI agents that collaborate to research more complex topics. Here's how it works:
+3. **Advanced Querying**: Use Langchain summarizer or GraphRAG for complex queries in the "Ask" section.
+
+4. **Advanced Indexing**: Enhance retrieval accuracy through multi-modal indexing techniques.
+
+5. **Multi-Agent Research**:
+   - **Multi-Agent**: Combine different indexes with agents (critic and researcher) working together for extended durations to find answers.
+   - **AutoGen Integration**: Utilize Microsoft's AutoGen framework to create an ensemble of AI agents for collaborative research on complex topics.
+   - **Time-Bounded Research**: Specify research duration to balance depth of analysis with response time.
+   - **Citation and Verification**: Responses include citations for accuracy verification.
+
+# Deploying SmartRAG
+
+SmartRAG can be easily deployed using the Azure Developer CLI (azd):
+
+1. Ensure you have the Azure Developer CLI installed.
+2. Clone the SmartRAG repository.
+3. Navigate to the project directory.
+4. Run the following command:
+
+   ```
+   azd up
+   ```
+   
+5. Some featurse may not be available until the app is restarted once.
+
+## Voice Mode Deployment Considerations
+
+SmartRAG includes a Voice Mode feature that uses Azure OpenAI's Text-to-Speech (TTS) and Whisper for Speech-to-Text capabilities. Please note:
+
+- The TTS feature is currently available only in the Sweden Central and North Central US regions.
+- If you want to use Voice Mode, ensure you deploy to one of these regions.
+- If you don't need Voice Mode, you can modify the deployment script to remove this component and deploy the rest of the application in any supported Azure region.
+
+The deployment process uses Bicep scripts (in the `infra` folder) and ARM templates (in the `infrastructure` folder) to set up the necessary Azure resources. 
+
+# Multi-Agent Research for RAG
+
+SmartRAG's experimental "Multi-Agent Research" feature uses Microsoft's [AutoGen](https://microsoft.github.io/autogen/) framework to create an ensemble of AI agents that collaborate on complex topics:
 
 <img src="assets/agents.png" width="350">
 
-#### 1. Researcher Agent
-The system creates an agent **for each data source**, allowing for independent research across various indexes.
+## Key Components
 
-#### 2. Reviewer Agent
-A reviewer agent oversees the process, guiding the research and synthesizing the findings. This agent also decides when the goal has been reached.
+1. **Researcher Agent**: Created for each data source, allowing independent research across various indexes.
+2. **Reviewer Agent**: Oversees the process, guiding research and synthesizing findings.
+3. **Collaborative Querying**: Agents ask follow-up questions, reframe queries, and synthesize information from multiple sources.
 
-Here's a snippet of how the reviewer agent (from [research.py](https://github.com/aymenfurter/smartrag/blob/main/app/research.py)):
+Here's a snippet of how the reviewer agent works:
 
 ```python
-def create_reviewer_agent(llm_config: Dict[str, Any], single_data_source: bool = False) -> AssistantAgent:
+def create_reviewer_agent(llm_config: Dict[str, Any], list_of_researchers: str, single_data_source: bool = False) -> AssistantAgent:
     system_message = (
         "I am Reviewer. I review the research and drive conclusions. "
         "Once I am done, I will ask you to terminate the conversation.\n\n"
-        "My job is to ask questions and guide the research to find the information I need "
+        "My job is to ask questions and guide the research to find the information I need. I always ask 10 questions at a time to get the information I need. "
         "and combine it into a final conclusion.\n\n"
         "I will make sure to ask follow-up questions to get the full picture.\n\n"
         "Only once I have all the information I need, I will ask you to terminate the conversation.\n\n"
+        "I will keep an eye on the referenced documents, if it looks like not the right documents were referenced, ask the researcher to reframe the question to find additional data sources.\n\n"
+        "I will use follow-up questions in case you the answer is incomplete (for instance if one data source is missing data).\n\n"
+        "My researcher is: " + list_of_researchers + "\n\n"
         "To terminate the conversation, I will write ONLY the string: TERMINATE"
     )
 
@@ -59,65 +100,66 @@ def create_reviewer_agent(llm_config: Dict[str, Any], single_data_source: bool =
         is_termination_msg=lambda msg: "TERMINATE" in msg["content"].upper(),
         system_message=system_message,
     )
-
-def research_with_data(data: Dict[str, Any], user_id: str) -> Response:
-    # ... [setup code omitted]
-
-    reviewer = create_reviewer_agent(llm_config, single_data_source=(len(data_sources) == 1))
-
-    # Create a group chat with all agents
-    groupchat = GroupChat(
-        agents=[user_proxy, reviewer] + researchers,
-        messages=[],
-        max_round=max_rounds,
-        speaker_selection_method="round_robin",
-    )
-    manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
-
-    # Initiate the research process
-    chat_result = user_proxy.initiate_chat(
-        manager,
-        message=question,
-        max_rounds=max_rounds
-    )
-
-    # ... [result processing and response generation omitted]
 ```
 
-#### 3. Time-Bounded Research
-Users can specify how long they're willing to wait for an answer, balancing depth of analysis with response time.
+# GraphRAG: Advanced Querying
 
-#### 4. Collaborative Querying: 
-Agents may ask follow-up questions, reframe queries, and synthesize information from multiple sources. The internal message flow is accessable to the user:
+SmartRAG implements GraphRAG, a powerful approach for complex querying across multiple data sources. This feature allows for more nuanced and comprehensive answers by leveraging graph-based representations of knowledge.
 
-<img src="assets/details.png">
+## Key Features of GraphRAG
 
-#### 5. Citation and Verification
-All responses include citations, allowing users to verify the accuracy of the information.
+1. **Global Search**: Perform searches across multiple interconnected data sources.
+2. **Community Context**: Utilize community structures within the data for more relevant results.
+3. **Token-based Processing**: Efficiently manage and process large amounts of text data.
 
+Here's a glimpse of how GraphRAG is implemented:
 
-This multi-agent approach mimics the way humans conduct research, breaking down complex questions, exploring multiple angles, and synthesizing information from various sources. It has the potential to provide more comprehensive and nuanced answers than traditional single-query RAG systems.
+```python
+async def global_query(self, query: str):
+    # ... [setup code omitted]
+
+    global_search = GlobalSearch(
+        llm=llm,
+        context_builder=context_builder,
+        token_encoder=token_encoder,
+        max_data_tokens=3000,
+        map_llm_params={"max_tokens": 500, "temperature": 0.0},
+        reduce_llm_params={"max_tokens": 500, "temperature": 0.0},
+        context_builder_params={
+            "use_community_summary": False,
+            "shuffle_data": True,
+            "include_community_rank": True,
+            "min_community_rank": 0,
+            "max_tokens": 3000,
+            "context_name": "Reports",
+        },
+    )
+
+    result = await global_search.asearch(query=query)
+    # ... [result processing omitted]
+```
+
+# Voice Mode: Natural Conversation Interface
+
+SmartRAG's Voice Mode creates a seamless, conversational interface using Azure OpenAI's Text-to-Speech and Whisper for Speech-to-Text capabilities.
+
+## Key Features
+
+1. **Text-to-Speech**: Convert AI responses to natural-sounding speech.
+2. **Speech-to-Text**: Automatically transcribe user voice input for processing.
+3. **Continuous Listening**: Enable hands-free, natural conversation flow.
 
 # The Foundation: Quality Data and Mature Frameworks
-<img  src="assets/screenshot.png?raw=true">
+<img src="assets/screenshot.png?raw=true">
 
-Use cases like multi-agent systems are enabled by high quality data and mature AI frameworks, it's important to understand that any RAG app is only as good as its retrieval component. This part heavily depends on high-quality data and robust ingestion pipelines.
+## Indexing Quality Improvements
 
-The AI development landscape is evolving rapidly. Frameworks, SDKs, and best practices needed time to mature. I believe we're now at a point where these tools have become more stable and reliable. 
+1. **Document Intelligence**: Convert unstructured files to structured Markdown format.
+2. **Multimodal Post-processing**: Additional processing for documents with images or graphs.
+3. **Table Enhancement**: Implement strategies for better handling of table content.
+4. **Page-Level Splitting**: Split documents at page-level during preprocessing for easier citation verification.
 
-### Leveraging Cloud-Native Capabilities
-
-One pitfall I've noticed is that developers may try to reinvent the wheel, creating overly complex solutions from scratch. However, Azure offers robust AI services that can significantly simplify both the development process and overall architecture. By using these native Azure capabilities and combining them with well-crafted & evaluated LLM calls, developers can achieve impressive results with a minimal code base.
-
-### Indexing Quality Improvements: The Key to Effective RAG
-
-To showcase the potential of leveraging Azure services and focusing on indexing improvements, I've developed a sample application called SmartRAG. This application uses Azure OpenAI Service's ingestion job feature, which simplifies the process of ingesting data into AI Search.
-
-Here are some key indexing time improvements, implemented in SmartRAG:
-
-
-### 1. **Document Intelligence**: 
-We can use Azure's **Document Intelligence** service to convert unstructured files into structured Markdown format. This is crucial because Markdown is ideal for large language models to process. Here's a snippet of how this is implemented via document intelligence (from [doc_intelligence.py](https://github.com/aymenfurter/smartrag/blob/main/app/doc_intelligence.py)): 
+Here's an example of how document intelligence is implemented:
 
 ```python
 def convert_pdf_page_to_md(pdf_path: str, page_num: int, output_dir: str, prefix: str, refine_markdown: bool = False) -> str:
@@ -144,62 +186,12 @@ def convert_pdf_page_to_md(pdf_path: str, page_num: int, output_dir: str, prefix
     # ... [output writing code omitted for brevity]
 ```
 
-### 2. Multimodal Post-processing of Images and Graphs
-For documents containing images or graphs, we can perform additional postprocessing to improve the generated markdown. 
+### Multimodal Post-processing of Images and Graphs
 
-Additionally to the markdown, Document Intelligence will provide us with a list of figures with related coordinates:
+For documents containing images or graphs, we perform additional postprocessing to improve the generated markdown. We use GPT-4o to generate image captions and inject this information back into the Markdown, allowing users to query not just the text but also the visual content of documents.
 
-```
-"figures": [
-			{
-				"id": "",
-				"boundingRegions": [
-					{
-						"pageNumber": 1,
-						"polygon": [
-							0.4665,
-							2.6768,
-							1.7342,
-							2.6768,
-							1.7342,
-							2.9049,
-							0.4665,
-							2.9049
-						]
-					},
-               ...
-```
+Here's an example of how this is implemented:
 
-We can cut these out and use GPT-4o to generate image captions, **then inject this information back into the Markdown**. This allows users to query not just the text but also the visual content of documents.
-
-Let's demonstrate this based on an example. 
-
-I've exported the Wikipedia entry of the city of zurich, then analyzed it with Document Intelligence:
-
-<img  src="assets/document_intelligence.png?raw=true"> 
-
-The markdown of a text that contains an image by default may look something like this:
-
-
-```markdown
-<figure>
-![](figures/2)
-</figure>
-The city stretches on both sides of the Limmat [...]
-```
-
-With the GPT-4o enriched caption, we get a markdown like this:
-
-```markdown
-<figure>
-![The image shows an aerial view of a city with a prominent river or lake cutting through it, taken from an airplane window. In the foreground, part of the airplane's wing is visible [...]](figures/2)
-</figure>
-The city stretches on both sides of the Limmat [...]
-```
-
-This enables a new range of questions that users can ask, covering also the visual aspect of the document.
-
-Let's take a look at the [code](https://github.com/aymenfurter/smartrag/blob/main/app/doc_intelligence.py) that enables this.
 ```python
 def refine_figures(content, png_path: str) -> str:
     def process_image(polygon: List[float], pdf_width: float, pdf_height: float, img_width: int, img_height: int) -> str:
@@ -236,7 +228,8 @@ def refine_figures(content, png_path: str) -> str:
     return updated_content
 ```
 
-### 3. Table Enhancement
+### Table Enhancement
+
 Tables often pose challenges for LLMs. SmartRAG implements strategies such as creating table summaries, generating Q&A pairs about the table content, and optionally creating textual representations of each row.
 
 The process works similarly to generating image captions.
@@ -289,7 +282,6 @@ This can help to both synthesize better answers for related questions and find t
 
 <img src="assets/with_refinements.png">
 
-
 Here's how the implementation looks like (from [table_postprocessor.py](https://github.com/aymenfurter/smartrag/blob/main/app/table_postprocessor.py)):
 
 ```python
@@ -323,52 +315,59 @@ def generate_qa_pairs(table_content: str) -> str:
     return f"\n\n<!-- Q&A Pairs:\n{qa_pairs}\n-->\n"
 ```
 
-### 4. Page-Level Splitting
-By splitting documents at the page-level during preprocessing, we can directly open the relevant page when verifying citations. If there is a lot of text on a single page, Azure AI Search will create text chunks within that specific page.
-
-
 # Cloud Architecture
 
-To implement these features, smartRAG leverages several key Azure services:
+SmartRAG utilizes several key Azure services:
 
-1. [Azure OpenAI Service](https://azure.microsoft.com/en-us/products/ai-services/openai-service): This provides access to powerful language models like GPT-4o in a secure environment.
+1. Azure OpenAI Service
+2. Ingestion Jobs (Preview)
+3. Document Intelligence (Preview API Version)
+4. Azure AI Search
+5. GPT-4 Vision (GPT-4o)
+6. AutoGen
 
-2. [Ingestion Jobs (Preview)](https://learn.microsoft.com/en-us/rest/api/azureopenai/ingestion-jobs/create?view=rest-azureopenai-2024-05-01-preview&tabs=HTTP): A feature of Azure OpenAI Service that simplifies data ingestion into **Azure AI Search**.
+# Usage
 
-3. [Document Intelligence (Preview API Version)](https://azure.microsoft.com/en-us/products/ai-services/ai-document-intelligence): Used for converting unstructured documents into structured Markdown format.
+## Basic RAG Query
 
-4. [Azure AI Search](https://azure.microsoft.com/en-us/products/ai-services/ai-search): Stores vectors and performs search queries. Data ingestion is handled through **Ingestion Jobs**, while retrieval is implemented using [OYD](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/use-your-data?tabs=ai-search) (Azure OpenAI On Your Data)
+To perform a basic RAG query:
 
-5. [GPT-4 Vision (GPT-4o)](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#gpt-4o-and-gpt-4-turbo): Enables the processing and description of images within documents.
+1. Upload your documents through the web interface.
+2. Navigate to the "Chat" section.
+3. Enter your query in the text box and press send.
+4. The system will retrieve relevant information and generate a response.
 
-6. [AutoGen](https://microsoft.github.io/autogen/): Microsoft's framework for building multi-agent systems, which powers my advanced research capabilities.
+## Multi-Agent Research
 
-# Application Design
+To initiate a multi-agent research session:
 
-1. Backend: Python with Flask
-   - Handles data processing, integrates with Azure services
-   - Implements the multi-agent system using AutoGen
+1. Go to the "Research" section.
+2. Enter your complex query or research topic.
+3. Select the data sources you want the agents to use.
+4. Set the maximum research duration.
+5. Click "Start Research" to begin the multi-agent process.
 
-2. Frontend: React-based
-   - Provides an intuitive user interface for both simple queries and multi-agent research
-   - Displays search results, citations, and agent interactions
+## Voice Mode
 
+To use Voice Mode:
 
-# Deploying SmartRAG
+1. Ensure your device has a microphone and speakers.
+2. Navigate to the "Voice Chat" section.
+3. Click the microphone icon to start listening.
+4. Speak your query clearly.
+5. The system will process your speech, generate a response, and read it back to you.
 
-SmartRAG can be easily deployed using the **Azure Developer CLI (azd)**. Follow these steps:
+# References
 
-1. Ensure you have the Azure Developer CLI installed.
-2. Clone the SmartRAG repository.
-3. Navigate to the project directory.
-4. Run the following command:
+SmartRAG builds upon and integrates the following key projects and services:
+- [AutoGen](https://microsoft.github.io/autogen/): A framework for building multi-agent systems, developed by Microsoft. SmartRAG utilizes AutoGen for its multi-agent research capabilities.
+- [GraphRAG](https://github.com/microsoft/graphrag): A graph-based approach to retrieval-augmented generation, created by Microsoft Research. SmartRAG incorporates GraphRAG for advanced querying. 
+- [LangChain](https://github.com/hwchase17/langchain): An open-source library for building applications with large language models. SmartRAG uses LangChain for various language model interactions and chain-of-thought processes.
+- [Azure AI Document Intelligence](https://azure.microsoft.com/en-us/products/ai-services/ai-document-intelligence): A cloud-based Azure AI service that uses optical character recognition (OCR) and document understanding AI models. SmartRAG leverages this service for extracting text, structure, and insights from documents.
+- [Azure AI Search](https://azure.microsoft.com/en-us/products/ai-services/ai-search): An AI-powered cloud search service for full-text search, semantic search, and vector search. SmartRAG uses Azure AI Search for efficient information retrieval and indexing.
+- [Azure Container Apps](https://azure.microsoft.com/en-us/products/container-apps): A fully managed serverless container service for building and deploying modern apps at scale. SmartRAG uses Azure Container Apps for deploying and managing its containerized components.
+- [React](https://react.dev/): A JavaScript library for building user interfaces. SmartRAG's frontend is built using React.
+- [Python](https://www.python.org/): The primary programming language used for developing SmartRAG's backend logic and AI integration.
+- [Flask](https://flask.palletsprojects.com/): A lightweight WSGI web application framework in Python. SmartRAG uses Flask for its backend API.
 
-   ```
-   azd up
-   ```
-
-Make sure you select a region with sufficent quota for GPT-4o.
-
-This command will:
-- Create necessary Azure resources
-- Deploy the backend to Azure Container App
+<sup>*</sup> **Note on SmartRAG's Purpose**: SmartRAG is designed as a demonstration and comparison tool for various Retrieval-Augmented Generation (RAG) approaches. It is important to note that SmartRAG is not built for scale and is not intended for production use. 

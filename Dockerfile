@@ -9,14 +9,29 @@ RUN npm run build
 # Stage 2: Backend build
 FROM python:3.11-slim
 WORKDIR /app
-COPY requirements.txt .
+
+# Install system dependencies
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends curl poppler-utils && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+    curl \
+    poppler-utils \
+    build-essential \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install Python dependencies
+COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
+
 COPY . .
 COPY --from=frontend-builder /frontend/build /app/static
+
 EXPOSE 5000
-CMD ["gunicorn", "-w", "4", "-k", "gevent", "--bind", "0.0.0.0:5000", "main:app"]
+
+# Use Gunicorn with gevent worker
+CMD ["gunicorn", "--worker-class", "geventwebsocket.gunicorn.workers.GeventWebSocketWorker", "--workers", "1", "--bind", "0.0.0.0:5000", "main:app"]

@@ -10,12 +10,24 @@ from app.ingestion.upload_queue import process_queue_messages
 from app.ingestion.indexing_queue import process_indexing_queue
 from app.ingestion.ingestion_job import process_indexing_job
 import asyncio
+import nest_asyncio
+
+# Apply nest_asyncio to allow nested event loops
+nest_asyncio.apply()
+
+# Create a new event loop
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 
 load_dotenv()
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Add the event loop to the app config
+app.config['LOOP'] = loop
+
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
 
 UPLOAD_FOLDER = Path('/tmp/uploads')
 PROCESSED_FOLDER = Path('/tmp/processed')
@@ -38,7 +50,8 @@ def start_queue_processor():
     process_queue_messages()
 
 def start_indexing_queue_processor():
-    asyncio.run(process_indexing_queue(process_indexing_job))
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(process_indexing_queue(process_indexing_job))
 
 queue_processor_thread = threading.Thread(target=start_queue_processor, daemon=True)
 queue_processor_thread.start()
@@ -47,4 +60,4 @@ indexing_queue_processor_thread = threading.Thread(target=start_indexing_queue_p
 indexing_queue_processor_thread.start()
 
 if __name__ == '__main__':
-    socketio.run(app, debug=False, use_reloader=False)
+    socketio.run(app, host='0.0.0.0', debug=False, use_reloader=False)
