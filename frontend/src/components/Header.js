@@ -118,16 +118,12 @@ function Header({ activeSection, setActiveSection, toggleTheme, isDarkMode }) {
 
   const navItems = [
     { icon: faComments, text: 'Chat', section: 'chat' },
-    { icon: faMicrophone, text: 'Voice Chat', section: 'voicechat' },
+    { icon: faMicrophone, text: 'Voice', section: 'voicechat' },
     { icon: faQuestion, text: 'Ask', section: 'ask' },
     ...(!operationsRestricted ? [
       { icon: faUpload, text: 'Upload', section: 'upload' },
     ] : []),
     { icon: faMagnifyingGlass, text: 'Multi-Agent Research', section: 'research' },
-    { icon: faTrash, text: 'Clear', action: () => {
-      localStorage.removeItem('chatHistory');
-      localStorage.removeItem('voiceChatHistory');
-    }},
   ];
 
   return (

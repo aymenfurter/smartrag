@@ -4,10 +4,11 @@ import requests
 from flask import Response
 from openai import AzureOpenAI
 import numpy as np
+import io
+from werkzeug.datastructures import FileStorage
 
 from dotenv import load_dotenv
 load_dotenv()
-
 
 def get_azure_openai_client(api_key: str = None, api_version: str = None, azure_endpoint: str = None) -> AzureOpenAI:
     """Create and return an AzureOpenAI client."""
@@ -47,17 +48,6 @@ def create_payload(messages: List[Dict[str, Any]], context: Dict[str, Any] = Non
         })
     return payload
 
-def create_data_source(endpoint: str, key: str, index_name: str) -> Dict[str, Any]:
-    """Create a data source configuration for Azure Cognitive Search."""
-    return {
-        "type": "AzureCognitiveSearch",
-        "parameters": {
-            "endpoint": endpoint,
-            "key": key,
-            "index_name": index_name
-        }
-    }
-
 def get_response(url: str, headers: Dict[str, str], payload: Dict[str, Any]) -> Dict[str, Any]:
     """Send a POST request and return the JSON response."""
     try:
@@ -77,6 +67,7 @@ def get_openai_config() -> Dict[str, str]:
         "OPENAI_ENDPOINT": os.environ.get('OPENAI_ENDPOINT', ''),
         "AOAI_API_KEY": os.environ.get('AOAI_API_KEY', ''),
         "AZURE_OPENAI_DEPLOYMENT_ID": os.environ.get('AZURE_OPENAI_DEPLOYMENT_NAME', ''),
+        "AZURE_OPENAI_DEPLOYMENT_NAME": os.environ.get('AZURE_OPENAI_DEPLOYMENT_NAME', ''),
         "SEARCH_SERVICE_ENDPOINT": os.environ.get('SEARCH_SERVICE_ENDPOINT', ''),
         "SEARCH_SERVICE_API_KEY": os.environ.get('SEARCH_SERVICE_API_KEY', ''),
         "AZURE_TTS_DEPLOYMENT_NAME": 'tts',
@@ -113,6 +104,54 @@ def calculate_cosine_similarity(vector1: np.ndarray, vector2: np.ndarray) -> flo
     similarity = dot_product / (norm_vector1 * norm_vector2)
     
     return similarity
+
+def speech_to_text(client: AzureOpenAI, audio_file: FileStorage) -> str:
+    """Convert speech to text using Azure OpenAI's Whisper model."""
+    audio_content = audio_file.read()
+    audio_bytes = io.BytesIO(audio_content)
+    audio_bytes.name = 'audio.wav'
+
+    result = client.audio.transcriptions.create(
+        model="whisper",
+        file=audio_bytes,
+    )
+    
+    audio_file.seek(0)
+    return result.text
+
+def text_to_speech(client: AzureOpenAI, input_text: str, config: Dict[str, str]) -> bytes:
+    """Convert text to speech using Azure OpenAI's TTS service."""
+    headers = {
+        'Content-Type': 'application/json',
+        'api-key': config['AOAI_API_KEY']
+    }
+    
+    url = f"{config['OPENAI_ENDPOINT']}/openai/deployments/{config['AZURE_TTS_DEPLOYMENT_NAME']}/audio/speech?api-version=2024-02-15-preview"
+    
+    body = {
+        "input": input_text,
+        "voice": "nova",
+        "model": config['AZURE_TTS_MODEL_NAME'],
+        "response_format": "mp3"
+    }
+
+    response = requests.post(url, headers=headers, json=body)
+    
+    if response.status_code == 200:
+        return response.content
+    else:
+        raise Exception(f"Text-to-speech API error: {response.status_code} - {response.text}")
+
+def generate_completion(client: AzureOpenAI, messages: List[Dict[str, Any]], model: str, 
+                        temperature: float = 0.7, max_tokens: int = 150) -> str:
+    """Generate a completion using the specified model and parameters."""
+    response = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens
+    )
+    return response.choices[0].message.content
 
 def _get_image_analysis_prompt() -> str:
     """Return the prompt for image analysis."""

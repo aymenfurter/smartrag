@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import styled, { keyframes, useTheme } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 
 const fadeIn = keyframes`
   from { opacity: 0; }
@@ -11,527 +12,585 @@ const slideIn = keyframes`
   to { transform: translateY(0); opacity: 1; }
 `;
 
-const pulse = keyframes`
+const pulseAnimation = keyframes`
   0% { transform: scale(1); }
   50% { transform: scale(1.05); }
   100% { transform: scale(1); }
 `;
 
-const rotate = keyframes`
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-`;
-
-const dissolveIn = keyframes`
-  0% { opacity: 0; transform: scale(0.8); }
-  100% { opacity: 1; transform: scale(1); }
+const universeAnimation = keyframes`
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(-10px, -10px); }
+  100% { transform: translate(0, 0); }
 `;
 
 const VoiceChatContainer = styled.div`
-  font-family: 'Roboto', sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
-  background-color: ${props => props.theme.backgroundColor};
-  color: ${props => props.theme.textColor};
+  min-height: 70vh;
+  padding: 40px;
+  background-color: ${props => props.theme.backgroundColor || '#f0f2f5'};
+  font-family: 'Roboto', 'Arial', sans-serif;
+  transition: all 0.3s ease;
 `;
 
-const AICircle = styled.div`
-  width: 180px;
-  height: 180px;
-  border-radius: 50%;
-  background-color: ${props => props.theme.aiCircleBackground};
+const AIRing = styled.div`
+  width: 300px;
+  height: 300px;
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 1.5rem;
   position: relative;
+  cursor: pointer;
+  border-radius: 50%;
   overflow: hidden;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.5s ease-out;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  animation: ${fadeIn} 1s ease-out, ${pulseAnimation} 2s infinite;
 
-  &.thinking .circle-animation {
-    opacity: 1;
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    right: -50%;
+    bottom: -50%;
+    background: ${props => props.ringBackground || 'radial-gradient(circle, #4da6ff 0%, #0066cc 100%)'};
+    opacity: 0.7;
+    animation: ${universeAnimation} 20s infinite;
   }
 
-  &.listening {
-    background-color: ${props => props.theme.aiCircleListeningBackground};
-    border: 3px solid ${props => props.theme.aiCircleBorder};
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.2) 1px, transparent 1px);
+    background-size: 15px 15px;
+    animation: ${universeAnimation} 40s infinite;
+  }
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
   }
 
   @media (max-width: 600px) {
-    width: 140px;
-    height: 140px;
+    width: 250px;
+    height: 250px;
   }
 `;
 
-const CircleAnimation = styled.div`
+const WaveContainer = styled.div`
   position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  border: 3px solid ${props => props.theme.aiCircleBackground};
-  border-top-color: ${props => props.theme.aiCircleBorder};
-  animation: ${rotate} 1s linear infinite;
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  width: 80%;
+  height: 80%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1;
+`;
+
+const WaveBar = styled.div`
+  position: absolute;
+  width: 4px;
+  background-color: rgba(255, 255, 255, 0.8);
+  margin: 0 2px;
+  border-radius: 2px;
+  transition: height 0.1s ease;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 `;
 
 const StatusText = styled.div`
-  font-size: 1rem;
-  font-weight: 400;
-  margin-bottom: 1.5rem;
-  color: ${props => props.theme.statusTextColor};
-`;
-
-const Button = styled.button`
-  background-color: ${props => props.theme.buttonBackground};
-  color: ${props => props.theme.buttonText};
-  border: none;
-  padding: 12px;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.1s;
-  margin: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-
-  &:hover {
-    background-color: ${props => props.theme.buttonHover};
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-
-  &.recording {
-    background-color: ${props => props.theme.recordingButtonBackground};
-  }
-
-  &.start-btn {
-    animation: ${dissolveIn} 1s ease-in-out;
-  }
-`;
-
-const Icon = styled.svg`
-  width: 20px;
-  height: 20px;
-  transition: transform 0.3s;
-  fill: ${props => props.theme.iconColor};
-
-  ${Button}:hover & {
-    transform: scale(1.1);
-  }
-`;
-
-const ChatContainer = styled.div`
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background-color: ${props => props.theme.chatBackground};
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  width: 320px;
-  max-height: 450px;
-  padding: 1.5rem;
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-top: 2.5rem;
+  color: ${props => props.theme.titleColor || '#333'};
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  text-align: center;
+  animation: ${slideIn} 0.5s ease-out;
   transition: all 0.3s ease;
-  overflow: hidden;
 
-  &.hidden {
-    transform: translateY(100%);
-    opacity: 0;
+  &::after {
+    content: '';
+    display: block;
+    width: 50px;
+    height: 3px;
+    background-color: ${props => props.theme.primaryButtonColor || '#0066cc'};
+    margin: 10px auto 0;
+    transition: width 0.3s ease;
   }
 
-  @media (max-width: 600px) {
-    width: 90%;
-    left: 5%;
-    right: 5%;
+  &:hover::after {
+    width: 100px;
   }
-`;
-
-const ChatMessages = styled.div`
-  display: none;
-  height: 350px;
-  overflow-y: auto;
-  padding: 1rem;
-  border: 1px solid ${props => props.theme.chatBorder};
-  border-radius: 4px;
-  margin-bottom: 1rem;
 `;
 
 const Message = styled.div`
-  margin-bottom: 0.8rem;
-  padding: 0.8rem;
-  border-radius: 8px;
-  max-width: 85%;
-  animation: ${fadeIn} 0.3s;
+  padding: 15px 20px;
+  border-radius: 20px;
+  max-width: 80%;
+  word-wrap: break-word;
+  animation: ${slideIn} 0.3s ease-out;
+  font-size: 1rem;
+  line-height: 1.5;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
 
-  &.user {
-    background-color: ${props => props.theme.userMessageBackground};
-    align-self: flex-end;
-    margin-left: auto;
-  }
-
-  &.assistant {
-    background-color: ${props => props.theme.assistantMessageBackground};
-    align-self: flex-start;
-  }
-
-  &.system {
-    background-color: ${props => props.theme.systemMessageBackground};
-    text-align: center;
-    font-style: italic;
-    max-width: 100%;
-    color: ${props => props.theme.systemMessageColor};
-  }
-`;
-
-const StopButton = styled.button`
-  width: 100%;
-  padding: 0.8rem;
-  background-color: ${props => props.theme.stopButtonBackground};
-  color: ${props => props.theme.stopButtonText};
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
+  background-color: ${props => 
+    props.isUser 
+      ? props.theme.userMessageBackground || '#e1f5fe' 
+      : props.theme.assistantMessageBackground || '#f0f4f8'
+  };
+  color: ${props => props.theme.textColor || '#333'};
+  align-self: ${props => props.isUser ? 'flex-end' : 'flex-start'};
+  border-bottom-right-radius: ${props => props.isUser ? '5px' : '20px'};
+  border-bottom-left-radius: ${props => props.isUser ? '20px' : '5px'};
 
   &:hover {
-    background-color: ${props => props.theme.stopButtonHover};
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
   }
 `;
 
+const GlowEffect = keyframes`
+  0% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(77, 166, 255, 0.8); }
+  100% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.5); }
+`;
 
-function VoiceSection({ indexName, isRestricted }) {
-    const theme = useTheme();
-    const [messages, setMessages] = useState([]);
-    const [isRecording, setIsRecording] = useState(false);
-    const [status, setStatus] = useState('Ready');
-    const [isAssistantSpeaking, setIsAssistantSpeaking] = useState(false);
-    const [isChatVisible, setIsChatVisible] = useState(true);
-    const [isStarted, setIsStarted] = useState(false);
-    const messagesContainerRef = useRef(null);
-    const mediaRecorderRef = useRef(null);
-    const audioChunksRef = useRef([]);
-    const audioContextRef = useRef(null);
-    const analyserRef = useRef(null);
-    const microphoneRef = useRef(null);
-    const currentAudioRef = useRef(null);
-    const wordCountRef = useRef(0);
-    const audioCtxRef = useRef(null);
-  
-    const silenceThreshold = -50; // dB
-    const shortPhraseThreshold = 3;
-    const shortPhraseSilenceDuration = 1000; // 1 second
-    const longPhraseSilenceDuration = 500; // 0.5 seconds
-  
-    useEffect(() => {
-      if (messagesContainerRef.current) {
-        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-      }
-    }, [messages]);
-  
-    useEffect(() => {
-      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
-      return () => {
-        if (audioCtxRef.current) {
-          audioCtxRef.current.close();
-        }
-      };
-    }, []);
-  
-    const playTone = (frequency, duration) => {
-      console.log(`Playing tone: ${frequency}Hz for ${duration}s`);
-      const oscillator = audioCtxRef.current.createOscillator();
-      const gainNode = audioCtxRef.current.createGain();
-      
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(frequency, audioCtxRef.current.currentTime);
-      
-      gainNode.gain.setValueAtTime(0.1, audioCtxRef.current.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtxRef.current.currentTime + duration);
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtxRef.current.destination);
-      
-      oscillator.start();
-      oscillator.stop(audioCtxRef.current.currentTime + duration);
-    };
-  
-    const updateStatus = (newStatus) => {
-      console.log(`Updating status to: ${newStatus}`);
-      setStatus(newStatus);
-      switch (newStatus) {
-        case 'Listening':
-          playTone(880, 0.1); // Play A5 for 100ms
-          break;
-        case 'Thinking':
-          playTone(440, 0.1); // Play A4 for 100ms
-          break;
-        default:
-          break;
-      }
-    };
-  
-    const startInteraction = () => {
-      console.log('Starting interaction');
-      setIsStarted(true);
-      getIntroMessage();
-    };
-  
-    const getIntroMessage = async () => {
-      console.log('Getting intro message');
-      updateStatus('Thinking');
-      try {
-        const response = await fetch('/intro', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        if (data.error) throw new Error(data.error);
-        addMessageToChat('assistant', data.response);
-        updateStatus('Speaking');
-        await playAudioResponse(data.audio);
-        updateStatus('Listening');
-        startRecording();
-      } catch (error) {
-        console.error('Error in getIntroMessage:', error);
-        addMessageToChat('assistant', `Sorry, there was an error: ${error.message}`);
-        updateStatus('Listening');
-      }
-    };
-  
-    const addMessageToChat = (sender, message) => {
-      setMessages(prev => [...prev, { role: sender, content: message }]);
-    };
-  
-    const playAudioResponse = (audioBase64) => {
-      console.log('Playing audio response');
-      return new Promise((resolve) => {
-        const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
-        currentAudioRef.current = audio;
-        setIsAssistantSpeaking(true);
-        
-        audio.addEventListener('ended', () => {
-          setIsAssistantSpeaking(false);
-          resolve();
-        });
-        
-        audio.play();
+const AIRingInner = styled.div`
+  width: 90%;
+  height: 90%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: ${GlowEffect} 2s infinite;
+`;
+
+const AIIcon = styled.div`
+  font-size: 3rem;
+  color: white;
+  text-shadow: 0 0 10px rgba(255,255,255,0.5);
+`;
+
+const WaveAnimation = keyframes`
+  0% { transform: scaleY(1); }
+  50% { transform: scaleY(0.5); }
+  100% { transform: scaleY(1); }
+`;
+
+const ActiveWaveBar = styled(WaveBar)`
+  animation: ${WaveAnimation} 0.5s infinite;
+  animation-delay: ${props => props.delay}s;
+`;
+class VoiceSectionJS {
+  constructor(indexName, isRestricted, elements, updateConversationHistory, onAudioLevelChange, setRingBackground) {
+    this.indexName = indexName;
+    this.isRestricted = isRestricted;
+    this.isRecording = false;
+    this.isAssistantSpeaking = false;
+    this.currentAudio = null;
+    this.mediaRecorder = null;
+    this.audioChunks = [];
+    this.audioContext = null;
+    this.analyser = null;
+    this.microphone = null;
+    this.conversationHistory = [];
+    this.silenceThreshold = -50; // dB
+    this.silenceDuration = 3000; // 3 seconds
+    this.maxRecordingDuration = 30000; // 30 seconds
+    this.recordingTimeout = null;
+    this.setRingBackground = setRingBackground;
+
+    this.elements = elements;
+    this.updateConversationHistory = updateConversationHistory;
+    this.onAudioLevelChange = onAudioLevelChange;
+
+    this.bindEvents();
+    this.startConversation();
+  }
+
+  bindEvents() {
+    this.elements.aiRing.addEventListener('click', () => this.handleRingClick());
+  }
+
+  handleRingClick() {
+    if (this.isAssistantSpeaking) {
+      this.stopAssistant();
+    } else if (!this.isRecording) {
+      this.startRecording();
+    } else {
+      this.stopRecording();
+    }
+  }
+
+  updateStatus(status) {
+
+    if (status !== 'Silent') {
+      this.elements.statusText.textContent = status;
+    }
+    
+    let backgroundColor;
+    switch (status) {
+      case 'Listening':
+      case 'Silent':
+        backgroundColor = 'radial-gradient(circle, #4da6ff 0%, #0066cc 100%)';
+        break;
+      case 'Speaking':
+        backgroundColor = 'radial-gradient(circle, #33C3F0 0%, #2980B9 100%)';
+        break;
+      default:
+        backgroundColor = 'radial-gradient(circle, #a0a0a0 0%, #404040 100%)';
+    }
+    this.setRingBackground(backgroundColor);
+  }
+
+  async startConversation() {
+    this.updateStatus('Thinking');
+    try {
+      const response = await fetch('/intro', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          index_name: this.indexName,
+          is_restricted: this.isRestricted,
+        }),
       });
-    };
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      this.conversationHistory.push({ role: 'assistant', content: data.response });
+      this.updateConversationHistory(this.conversationHistory);
+      this.updateStatus('Speaking');
+      await this.playAudioResponse(data.audio);
+      this.updateStatus('Listening');
+      this.startRecording();
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      this.updateStatus(`Error: ${error.message}`);
+    }
+  }
+
+  analyzeAudio(audioContext, sourceNode) {
+    const analyser = audioContext.createAnalyser();
+    sourceNode.connect(analyser);
+    analyser.fftSize = 256;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
   
-    const startRecording = async () => {
-      console.log('Starting recording');
-      if (isRecording) {
-        console.log('Already recording, skipping');
+    const updateAudioLevel = () => {
+      if (!this.isRecording && !this.isAssistantSpeaking) {
+        this.updateAudioLevel(0);
         return;
       }
   
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        microphoneRef.current = audioContextRef.current.createMediaStreamSource(stream);
-        microphoneRef.current.connect(analyserRef.current);
-        
-        analyserRef.current.fftSize = 2048;
-        const bufferLength = analyserRef.current.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
+      analyser.getByteFrequencyData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        sum += dataArray[i];
+      }
+      const average = sum / bufferLength;
+      const normalizedLevel = average / 255;
+      
+      this.updateAudioLevel(normalizedLevel);
   
-        mediaRecorderRef.current = new MediaRecorder(stream);
-        audioChunksRef.current = [];
-        wordCountRef.current = 0;
-  
-        mediaRecorderRef.current.addEventListener("dataavailable", event => {
-          audioChunksRef.current.push(event.data);
-        });
-  
-        mediaRecorderRef.current.addEventListener("stop", async () => {
-          console.log('MediaRecorder stopped');
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-          await sendAudioToServer(audioBlob);
-        });
-  
-        mediaRecorderRef.current.start(100);
-        setIsRecording(true);
-        updateStatus('Listening');
-  
-        detectSilence(dataArray, bufferLength, silenceThreshold);
-      } catch (error) {
-        console.error('Error starting recording:', error);
-        alert('Unable to access the microphone. Please make sure it\'s connected and you\'ve granted permission.');
+      if (this.isRecording || this.isAssistantSpeaking) {
+        requestAnimationFrame(updateAudioLevel);
       }
     };
   
-    const detectSilence = (dataArray, bufferLength, threshold) => {
-      console.log('Detecting silence');
-      let silenceStart = performance.now();
-      let silenceDetected = false;
-      let lastSpeechTime = performance.now();
-      let hasSpokeAtLeastOneWord = false;
-  
-      function checkAudioLevel() {
-        analyserRef.current.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for(let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i];
-        }
-        let average = sum / bufferLength;
-        let dB = 20 * Math.log10(average / 255);
-  
-        if (dB < threshold) {
-          if (!silenceDetected) {
-            silenceDetected = true;
-            silenceStart = performance.now();
-          } else {
-            let currentSilenceDuration = performance.now() - silenceStart;
-            let requiredSilenceDuration;
-  
-            if (wordCountRef.current > shortPhraseThreshold) {
-              requiredSilenceDuration = longPhraseSilenceDuration;
-            } else if (hasSpokeAtLeastOneWord) {
-              requiredSilenceDuration = shortPhraseSilenceDuration;
-            } else {
-              requiredSilenceDuration = Infinity;
-            }
-  
-            if (currentSilenceDuration > requiredSilenceDuration) {
-              console.log('Silence detected, stopping recording');
-              stopRecording();
-              return;
-            }
-          }
-        } else {
-          silenceDetected = false;
-          lastSpeechTime = performance.now();
-          hasSpokeAtLeastOneWord = true;
-        }
-  
-        if (isRecording) {
-          requestAnimationFrame(checkAudioLevel);
-        }
-      }
-  
-      checkAudioLevel();
-    };
-  
-    const stopRecording = () => {
-      console.log('Stopping recording');
-      if (mediaRecorderRef.current && isRecording) {
-        mediaRecorderRef.current.stop();
-        setIsRecording(false);
-        updateStatus('Thinking');
-        
-        if (audioContextRef.current) {
-          audioContextRef.current.close();
-        }
-      }
-    };
-  
-    const sendAudioToServer = async (audioBlob) => {
-      console.log('Sending audio to server');
-      updateStatus('Thinking');
-      const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.wav');
-      formData.append('index_name', indexName);
-      formData.append('is_restricted', isRestricted.toString());
-      formData.append('conversation_history', JSON.stringify(messages));
-  
-      try {
-        const response = await fetch('/voice_chat', {
-          method: 'POST',
-          body: formData
-        });
-  
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-  
-        const data = await response.json();
-        if (data.error) throw new Error(data.error);
-  
-        if (data.user_text.trim()) {
-          addMessageToChat('user', data.user_text);
-          wordCountRef.current = data.user_text.trim().split(/\s+/).length;
-          addMessageToChat('assistant', data.response);
-          updateStatus('Speaking');
-          await playAudioResponse(data.audio);
-          updateStatus('Listening');
-          startRecording();
-        } else {
-          console.log('No text detected, starting recording again');
-          startRecording();
-        }
-      } catch (error) {
-        console.error('Error in sendAudioToServer:', error);
-        addMessageToChat('system', `Sorry, there was an error processing your speech: ${error.message}`);
-        startRecording();
-      }
-    };
-  
-    const toggleRecording = () => {
-      console.log('Toggling recording');
-      if (isRecording) {
-        stopRecording();
-      } else {
-        startRecording();
-      }
-    };
-  
-    const stopAssistant = () => {
-      console.log('Stopping assistant');
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current.currentTime = 0;
-      }
-      setIsAssistantSpeaking(false);
-      updateStatus('Listening');
-    };
-  
-    const toggleChatVisibility = () => {
-      setIsChatVisible(!isChatVisible);
-    };
-  
-    return (
-      <VoiceChatContainer>
-        <AICircle className={status.toLowerCase()}>
-          <CircleAnimation className="circle-animation" />
-        </AICircle>
-        <StatusText>{status}</StatusText>
-        {!isStarted ? (
-          <Button className="start-btn" onClick={startInteraction}>
-            <Icon viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z"/>
-            </Icon>
-          </Button>
-        ) : (
-          <>
-            <Button onClick={toggleRecording} className={isRecording ? 'recording' : ''}>
-              <Icon viewBox="0 0 24 24">
-                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-              </Icon>
-            </Button> 
-          </>
-        )}
-        <ChatContainer className={isChatVisible ? '' : 'hidden'}>
-          <ChatMessages ref={messagesContainerRef}>
-            {messages.map((message, index) => (
-              <Message key={index} className={message.role}>
-                {message.content}
-              </Message>
-            ))}
-          </ChatMessages>
-          {isAssistantSpeaking && (
-            <StopButton onClick={stopAssistant}>Stop Assistant</StopButton>
-          )}
-        </ChatContainer>
-      </VoiceChatContainer>
-    );
+    updateAudioLevel();
   }
+  updateAudioLevel(level) {
+    if (this.onAudioLevelChange) {
+      this.onAudioLevelChange(level);
+    }
+  }
+
+  async startRecording() {
+    if (this.isRecording) return;
   
-  export default VoiceSection;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const sourceNode = this.audioContext.createMediaStreamSource(stream);
+      
+      this.isRecording = true;  // Set this before analyzing audio
+      this.analyzeAudio(this.audioContext, sourceNode);
+
+      this.analyser = this.audioContext.createAnalyser();
+      this.microphone = sourceNode;
+      this.microphone.connect(this.analyser);
+      
+      this.analyser.fftSize = 256;
+      const bufferLength = this.analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      this.mediaRecorder = new MediaRecorder(stream);
+      this.audioChunks = [];
+
+      this.mediaRecorder.addEventListener("dataavailable", event => {
+        this.audioChunks.push(event.data);
+      });
+
+      this.mediaRecorder.addEventListener("stop", async () => {
+        const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
+        await this.sendAudioToServer(audioBlob);
+      });
+
+      this.mediaRecorder.start(100);
+      this.isRecording = true;
+      this.updateStatus('Listening');
+
+      this.detectSilence(dataArray, bufferLength, this.silenceThreshold);
+      this.animateWaveform(dataArray, bufferLength);
+
+      // Set a maximum recording duration
+      this.recordingTimeout = setTimeout(() => {
+        if (this.isRecording) {
+          this.stopRecording();
+        }
+      }, this.maxRecordingDuration);
+
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      this.updateStatus(`Error: Unable to access the microphone`);
+    }
+  }
+
+ 
+  detectSilence(dataArray, bufferLength, threshold) {
+    let silenceStart = performance.now();
+    let silenceDetected = false;
+  
+    const checkAudioLevel = () => {
+      if (!this.isRecording) return;
+  
+      this.analyser.getByteFrequencyData(dataArray);
+      let sum = 0;
+      for(let i = 0; i < bufferLength; i++) {
+        sum += dataArray[i];
+      }
+      let average = sum / bufferLength;
+      let dB = 20 * Math.log10(average / 255);
+  
+  
+      if (dB < threshold) {
+        if (!silenceDetected) {
+          silenceDetected = true;
+          silenceStart = performance.now();
+        } else {
+          let currentSilenceDuration = performance.now() - silenceStart;
+          if (currentSilenceDuration > this.silenceDuration) {
+            this.stopRecording();
+            return;
+          }
+        }
+        if (performance.now() - silenceStart > 500) {
+          this.updateStatus('Silent');
+        }
+      } else {
+        silenceDetected = false;
+        this.updateStatus('Listening');
+      }
+  
+      requestAnimationFrame(checkAudioLevel);
+    };
+  
+    checkAudioLevel();
+  }
+
+  animateWaveform(dataArray, bufferLength) {
+    const animate = () => {
+      if (!this.isRecording) return;
+
+      this.analyser.getByteFrequencyData(dataArray);
+      const bars = this.elements.waveBars;
+      const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
+      for (let i = 0; i < bars.length; i++) {
+        bars[i].style.height = `${Math.max(5, (average / 255) * 100)*2}px`;
+      }
+
+      requestAnimationFrame(animate);
+    };
+
+    animate();
+  }
+
+  stopRecording() {
+    if (this.mediaRecorder && this.isRecording) {
+      this.mediaRecorder.stop();
+      this.isRecording = false;
+      this.updateStatus('Thinking');
+      
+      if (this.audioContext) {
+        this.audioContext.close();
+      }
+
+      clearTimeout(this.recordingTimeout);
+    }
+  }
+
+  async sendAudioToServer(audioBlob) {
+    this.updateStatus('Thinking');
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.wav');
+    formData.append('index_name', this.indexName);
+    formData.append('is_restricted', this.isRestricted.toString());
+    formData.append('conversation_history', JSON.stringify(this.conversationHistory));
+
+    try {
+      const response = await fetch('/voice_chat', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      if (data.user_text.trim()) {
+        this.conversationHistory.push({ role: 'user', content: data.user_text });
+        this.conversationHistory.push({ role: 'assistant', content: data.response });
+        this.updateConversationHistory(this.conversationHistory);
+        this.updateStatus('Speaking');
+        await this.playAudioResponse(data.audio);
+        this.updateStatus('Listening');
+        this.startRecording();
+      } else {
+        this.startRecording();
+      }
+    } catch (error) {
+      console.error('Error in sendAudioToServer:', error);
+      this.updateStatus(`Error: ${error.message}`);
+      setTimeout(() => this.startRecording(), 3000);
+    }
+  }
+
+  async playAudioResponse(audioBase64) {
+    return new Promise((resolve) => {
+      const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+      this.currentAudio = audio;
+      this.isAssistantSpeaking = true;
+      
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const sourceNode = audioContext.createMediaElementSource(audio);
+      sourceNode.connect(audioContext.destination);
+      
+      this.analyzeAudio(audioContext, sourceNode);
+      
+      audio.addEventListener('ended', () => {
+        this.isAssistantSpeaking = false;
+        this.updateStatus('Listening');
+        resolve();
+      });
+      
+      audio.play();
+    });
+  }
+
+  stopAssistant() {
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+      this.currentAudio.currentTime = 0;
+    }
+    this.isAssistantSpeaking = false;
+    this.updateStatus('Listening');
+    this.startRecording();
+  }
+}
+
+
+
+function VoiceSection({ indexName, isRestricted }) {
+  const voiceSectionRef = useRef(null);
+  const elementsRef = useRef({});
+  const [conversationHistory, setConversationHistory] = useState([]);
+  const [status, setStatus] = useState('Ready');
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [ringBackground, setRingBackground] = useState('radial-gradient(circle, #a0a0a0 0%, #404040 100%)');
+
+  useEffect(() => {
+    if (voiceSectionRef.current) return;
+
+    const aiRing = document.querySelector('.ai-ring');
+    const statusText = document.querySelector('.status-text');
+    const waveBars = Array.from(document.querySelectorAll('.wave-bar'));
+
+    const elements = {
+      aiRing,
+      statusText,
+      waveBars
+    };
+
+    elementsRef.current = elements;
+    voiceSectionRef.current = new VoiceSectionJS(
+      indexName, 
+      isRestricted, 
+      elements, 
+      (history) => {
+        setConversationHistory(history);
+      },
+      (level) => {
+        setAudioLevel(level);
+      },
+      (newBackground) => {
+        setRingBackground(newBackground);
+        setStatus(elements.statusText.textContent);
+      }
+    );
+  }, [indexName, isRestricted]);
+
+  const isListening = status === 'Listening';
+  const isSpeaking = status === 'Speaking';
+
+  return (
+    <VoiceChatContainer>
+      <AIRing 
+        className="ai-ring" 
+        isListening={isListening}
+        isSpeaking={isSpeaking}
+        ringBackground={ringBackground}
+      >
+        <WaveContainer>
+          {[...Array(20)].map((_, index) => (
+            <WaveBar 
+              key={index} 
+              className="wave-bar" 
+              style={{
+                height: `${5 + audioLevel * 50}px`,
+                transform: `rotate(${index * 18}deg) translateY(-100px)`
+              }}
+            />
+          ))}
+        </WaveContainer>
+        <AIRingInner>
+        </AIRingInner>
+      </AIRing>
+      <StatusText className="status-text">
+        {isListening ? 'Listening' : status}
+      </StatusText>
+    </VoiceChatContainer>
+  );
+}
+
+export default VoiceSection;
