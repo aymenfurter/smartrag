@@ -225,6 +225,46 @@
                                 "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
                                 "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), parameters('gptDeploymentName'))]"
                             ]
+                        },
+                        {
+                            "type": "Microsoft.CognitiveServices/accounts/deployments",
+                            "apiVersion": "2023-05-01",
+                            "name": "[format('{0}/whisper', parameters('name'))]",
+                            "sku": {
+                                "name": "Standard",
+                                "capacity": 3
+                            },
+                            "properties": {
+                                "model": {
+                                    "format": "OpenAI",
+                                    "name": "whisper",
+                                    "version": "001"
+                                }
+                            },
+                            "dependsOn": [
+                                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), parameters('embeddingDeploymentName'))]"
+                            ]
+                        },
+                        {
+                            "type": "Microsoft.CognitiveServices/accounts/deployments",
+                            "apiVersion": "2023-05-01",
+                            "name": "[format('{0}/tts', parameters('name'))]",
+                            "sku": {
+                                "name": "Standard",
+                                "capacity": 3
+                            },
+                            "properties": {
+                                "model": {
+                                    "format": "OpenAI",
+                                    "name": "tts",
+                                    "version": "001"
+                                }
+                            },
+                            "dependsOn": [
+                                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]",
+                                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'whisper')]"
+                            ]
                         }
                     ],
                     "outputs": {
@@ -717,7 +757,7 @@
                         "value": "SystemAssigned"
                     },
                     "imageName": {
-                        "value": "ghcr.io/aymenfurter/smartrag/smartrag:4f15ef573805baae224f42bf60c9ac1176a563e8"
+                        "value": "ghcr.io/aymenfurter/smartrag/smartrag:d072301955dd7563d6d1acf13b3c1d62c698bca0"
                     },
                     "tags": {
                         "value": {
