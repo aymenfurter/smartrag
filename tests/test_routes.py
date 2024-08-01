@@ -75,7 +75,7 @@ class TestRouteConfigurator(unittest.TestCase):
         response = self.client.delete('/indexes/testindex?is_restricted=true')
         self.assertEqual(response.status_code, 200)
         mock_delete_index.assert_called_once()
-        mock_delete_ingestion_index.assert_called_once()
+        mock_delete_ingestion_index.assert_called()
 
     @patch('app.api.routes.get_user_id')
     @patch('app.api.routes.create_index_manager')

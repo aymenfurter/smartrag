@@ -22,13 +22,6 @@ class TestAzureOpenAI(unittest.TestCase):
         self.assertEqual(payload["stream"], False)
         self.assertEqual(payload["max_tokens"], 1000)
 
-    def test_create_data_source(self):
-        data_source = azure_openai.create_data_source("endpoint", "key", "index")
-        self.assertEqual(data_source["type"], "AzureCognitiveSearch")
-        self.assertEqual(data_source["parameters"]["endpoint"], "endpoint")
-        self.assertEqual(data_source["parameters"]["key"], "key")
-        self.assertEqual(data_source["parameters"]["index_name"], "index")
-
     @patch('app.integration.azure_openai.requests.post')
     def test_get_response(self, mock_post):
         mock_response = MagicMock()

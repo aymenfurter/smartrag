@@ -16,6 +16,7 @@ class IndexManager:
     """Manages the creation and access of index containers."""
     MAX_CONTAINER_NAME_LENGTH = 63
     INGESTION_SUFFIX = "-ingestion"
+    GR_INGESTION_SUFFIX = "-graphrag"
     REFERENCE_SUFFIX = "-reference"
     LZ_SUFFIX = "-lz" 
     GRDATA_SUFFIX = "-grdata"
@@ -39,6 +40,7 @@ class IndexManager:
         
         max_length = self.MAX_CONTAINER_NAME_LENGTH - max(
             len(self.INGESTION_SUFFIX),
+            len(self.GR_INGESTION_SUFFIX),
             len(self.REFERENCE_SUFFIX),
             len(self.LZ_SUFFIX),
             len(self.GRDATA_SUFFIX),
@@ -56,6 +58,11 @@ class IndexManager:
     def get_ingestion_container(self) -> str:
         """Returns the name of the ingestion container."""
         return f"{self.base_container_name}{self.INGESTION_SUFFIX}"
+
+    def get_graphrag_ingestion_container(self) -> str:
+        """Returns the name of the graphrag ingestion index."""
+        return f"{self.base_container_name}{self.GR_INGESTION_SUFFIX}"
+
 
     def get_reference_container(self) -> str:
         """Returns the name of the reference container."""
