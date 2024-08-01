@@ -150,8 +150,6 @@ SmartRAG's Voice Mode creates a seamless, conversational interface using Azure O
 # The Foundation: Quality Data and Mature Frameworks
 <img src="assets/screenshot.png?raw=true">
 
-SmartRAG leverages high-quality data, mature AI frameworks, and cloud-native capabilities to provide robust RAG functionality.
-
 ## Indexing Quality Improvements
 
 1. **Document Intelligence**: Convert unstructured files to structured Markdown format.
