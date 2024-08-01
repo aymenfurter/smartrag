@@ -50,8 +50,7 @@ def start_queue_processor():
     process_queue_messages()
 
 def start_indexing_queue_processor():
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(process_indexing_queue(process_indexing_job))
+    asyncio.run(process_indexing_queue(process_indexing_job))
 
 queue_processor_thread = threading.Thread(target=start_queue_processor, daemon=True)
 queue_processor_thread.start()
@@ -60,4 +59,4 @@ indexing_queue_processor_thread = threading.Thread(target=start_indexing_queue_p
 indexing_queue_processor_thread.start()
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', debug=False, use_reloader=False)
+    socketio.run(app, debug=False, use_reloader=False)
