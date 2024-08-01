@@ -143,7 +143,7 @@ class RouteConfigurator:
     def _remove_index(self, index_name: str):
         if self.operations_restricted:
             return jsonify({"error": "Operation not allowed"}), 403
-
+        
         user_id = get_user_id(request)
         is_restricted = request.args.get('is_restricted', 'true').lower() == 'true'
         
@@ -151,13 +151,36 @@ class RouteConfigurator:
             index_manager = create_index_manager(user_id, index_name, is_restricted)
         except ContainerNameTooLongError as e:
             return jsonify({"error": str(e)}), 400
-
+        
         if not index_manager.user_has_access():
             return jsonify({"error": "Unauthorized access"}), 403
+        
+        deletion_errors = []
+        
+        try:
+            delete_index(user_id, index_name, is_restricted)
+        except Exception as e:
+            deletion_errors.append(f"Error deleting main index: {str(e)}")
 
-        delete_index(user_id, index_name, is_restricted)
-        delete_ingestion_index(index_manager.get_ingestion_container())
-        return jsonify({"message": "Index deleted successfully"}), 200
+            
+        
+        try:
+            delete_ingestion_index(index_manager.get_ingestion_container())
+        except Exception as e:
+            deletion_errors.append(f"Error deleting ingestion index: {str(e)}")
+
+        try:
+            delete_ingestion_index(index_manager.get_graphrag_ingestion_container())
+        except Exception as e:
+            deletion_errors.append(f"Error deleting graphrag index: {str(e)}")
+        
+        if deletion_errors:
+            return jsonify({
+                "message": "Index deletion partially successful",
+                "errors": deletion_errors
+            }), 207 
+        else:
+            return jsonify({"message": "Index deleted successfully"}), 200
 
     def _upload_file(self, index_name: str):
         if self.operations_restricted:

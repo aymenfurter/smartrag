@@ -1,8 +1,11 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash, faPlus } from '@fortawesome/free-solid-svg-icons';
-import { ConfigContext } from './ConfigContext'; // Assuming you have a ConfigContext
+import { ConfigContext } from './ConfigContext';
+
+// Basic Tier of Ai Search has 15 indexes (2 indexes on AI Search per index in SmartRAG)
+const MAX_INDEXES = 7;
 
 const fadeIn = keyframes`
   from { opacity: 0; }
@@ -107,6 +110,12 @@ const Button = styled.button`
   &:active {
     transform: translateY(0);
   }
+
+  &:disabled {
+    background-color: ${props => props.theme.disabledButtonColor};
+    cursor: not-allowed;
+    transform: none;
+  }
 `;
 
 const CheckboxContainer = styled.div`
@@ -150,14 +159,33 @@ const CheckboxLabel = styled.label`
   color: ${props => props.theme.labelText};
 `;
 
+const ErrorMessage = styled.div`
+  color: ${props => props.theme.errorText};
+  font-size: 14px;
+  margin-top: 10px;
+`;
+
 function IndexRibbon({ indexes, selectedIndex, onSelectIndex, onIndexesChange, onDeleteIndex }) {
   const [newIndexName, setNewIndexName] = useState('');
   const [isRestricted, setIsRestricted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const { operationsRestricted, easyAuthEnabled } = useContext(ConfigContext);
+
+  useEffect(() => {
+    if (indexes.length >= MAX_INDEXES) {
+      setErrorMessage(`Maximum number of indexes (${MAX_INDEXES}) reached.`);
+    } else {
+      setErrorMessage('');
+    }
+  }, [indexes]);
 
   const handleCreateIndex = async (e) => {
     e.preventDefault();
     if (!newIndexName) return;
+    if (indexes.length >= MAX_INDEXES) {
+      setErrorMessage(`Maximum number of indexes (${MAX_INDEXES}) reached.`);
+      return;
+    }
     try {
       const response = await fetch('/indexes', {
         method: 'POST',
@@ -171,8 +199,10 @@ function IndexRibbon({ indexes, selectedIndex, onSelectIndex, onIndexesChange, o
       console.log(data.message);
       setNewIndexName('');
       onIndexesChange();
+      setErrorMessage('');
     } catch (error) {
       console.error('Error creating index:', error);
+      setErrorMessage('Failed to create index. Please try again.');
     }
   };
 
@@ -190,6 +220,7 @@ function IndexRibbon({ indexes, selectedIndex, onSelectIndex, onIndexesChange, o
         onDeleteIndex(indexName, isRestricted);
       } catch (error) {
         console.error('Error deleting index:', error);
+        alert('Failed to delete index. Some components may have been removed.');
       }
     }
   };
@@ -239,10 +270,11 @@ function IndexRibbon({ indexes, selectedIndex, onSelectIndex, onIndexesChange, o
               <CheckboxLabel htmlFor="restrictedCheckbox">Restricted</CheckboxLabel>
             </CheckboxContainer>
           )}
-          <Button type="submit">
+          <Button type="submit" disabled={indexes.length >= MAX_INDEXES}>
             <FontAwesomeIcon icon={faPlus} style={{ marginRight: '5px' }} />
             Create Index
           </Button>
+          {errorMessage && <ErrorMessage>{errorMessage}</ErrorMessage>}
         </CreateIndexForm>
       )}
     </RibbonContainer>
