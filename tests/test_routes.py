@@ -11,8 +11,19 @@ from flask_socketio import SocketIO
 class TestRouteConfigurator(unittest.TestCase):
 
     def setUp(self):
-        os.environ['STORAGE_ACCOUNT_NAME'] = 'mock_storage_account_name'
-        
+        self.env_patcher = patch.dict(os.environ, {
+            'STORAGE_ACCOUNT_NAME': 'mock_storage_account_name',
+            'OPENAI_ENDPOINT': 'https://example.openai.com',
+            'AOAI_API_KEY': 'fake_aoai_key',
+            'SEARCH_SERVICE_ENDPOINT': 'https://example.search.windows.net',
+            'SEARCH_SERVICE_API_KEY': 'fake_search_key',
+            'SUBSCRIPTION_ID': 'fake_subscription_id',
+            'RESOURCE_GROUP': 'fake_resource_group',
+            'ADA_DEPLOYMENT_NAME': 'fake_ada_deployment',
+            'AZURE_OPENAI_DEPLOYMENT_NAME': 'fake_deployment_name'
+        })
+        self.env_patcher.start()
+
         self.app = Flask(__name__)
         self.app.config['TESTING'] = True
         self.app.config['UPLOAD_FOLDER'] = '/tmp'
