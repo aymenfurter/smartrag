@@ -1,4 +1,4 @@
-flask[async]
+flask
 python-dotenv
 azure-identity
 azure-storage-blob
@@ -23,3 +23,7 @@ pandas
 adlfs
 fsspec
 azure-data-tables
+flask[async]
+gevent-websocket
+asgiref
+nest_asyncio
