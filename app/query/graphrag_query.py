@@ -10,6 +10,7 @@ from graphrag.query.structured_search.global_search.search import GlobalSearch
 from graphrag.query.llm.oai.chat_openai import ChatOpenAI
 from graphrag.query.llm.oai.typing import OpenaiApiType
 from graphrag.query.structured_search.global_search.community_context import GlobalCommunityContext
+import time
 
 class GraphRagQuery:
     def __init__(self, config: GraphRagConfig):
@@ -36,11 +37,17 @@ class GraphRagQuery:
     async def global_query(self, query: str):
         ENTITY_TABLE = "output/create_final_nodes.parquet"
         COMMUNITY_REPORT_TABLE = "output/create_final_community_reports.parquet"
-        COMMUNITY_LEVEL = 2
+        COMMUNITY_LEVEL = 1
 
         entity_table_path = f"abfs://{self.config.prefix}-{self.config.index_name}-grdata/{ENTITY_TABLE}"
         community_report_table_path = f"abfs://{self.config.prefix}-{self.config.index_name}-grdata/{COMMUNITY_REPORT_TABLE}"
+
+        start_time = time.time()
         report_df, entity_df = self.get_reports(entity_table_path, community_report_table_path, COMMUNITY_LEVEL)
+        end_time = time.time()
+
+        download_time = end_time - start_time
+        print(f"Download time: {download_time} seconds")
 
         id_col = 'community'
         report_df["title"] = [f"{self.config.index_name}<sep>{i}<sep>{t}" for i, t in zip(report_df[id_col], report_df["title"])]
@@ -78,9 +85,13 @@ class GraphRagQuery:
                 "max_tokens": 3000,
                 "context_name": "Reports",
             },
+            concurrent_coroutines=1
         )
-
+        
+        start_time = time.time()
         result = await global_search.asearch(query=query)
+        end = time.time()
+        print(f"Time taken for asearch: {end - start_time}")
 
         processed_reports = []
         if isinstance(result.context_data.get("reports"), pd.DataFrame):
