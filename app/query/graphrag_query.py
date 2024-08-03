@@ -37,7 +37,7 @@ class GraphRagQuery:
     async def global_query(self, query: str):
         ENTITY_TABLE = "output/create_final_nodes.parquet"
         COMMUNITY_REPORT_TABLE = "output/create_final_community_reports.parquet"
-        COMMUNITY_LEVEL = 1
+        COMMUNITY_LEVEL = 2
 
         entity_table_path = f"abfs://{self.config.prefix}-{self.config.index_name}-grdata/{ENTITY_TABLE}"
         community_report_table_path = f"abfs://{self.config.prefix}-{self.config.index_name}-grdata/{COMMUNITY_REPORT_TABLE}"
