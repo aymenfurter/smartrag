@@ -101,14 +101,16 @@ class RouteConfigurator:
         data = request.json
         ask_service = self._get_ask_service()
         
-        async def async_ask():
-            return await ask_service.ask_question(data, user_id)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         
-        loop = asyncio.get_event_loop()
-        response, status_code = loop.run_until_complete(async_ask())
+        try:
+            response, status_code = loop.run_until_complete(ask_service.ask_question(data, user_id))
+        finally:
+            loop.close()
         
         return jsonify(response), status_code
-
+        
     def _get_indexes(self):
         user_id = get_user_id(request)
         indexes = list_indexes(user_id)

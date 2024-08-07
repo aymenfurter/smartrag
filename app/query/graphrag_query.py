@@ -74,18 +74,18 @@ class GraphRagQuery:
             llm=llm,
             context_builder=context_builder,
             token_encoder=token_encoder,
-            max_data_tokens=3000,
-            map_llm_params={"max_tokens": 500, "temperature": 0.0},
-            reduce_llm_params={"max_tokens": 500, "temperature": 0.0},
+            max_data_tokens=80000,
+            map_llm_params={"max_tokens": 2000, "temperature": 0.0},
+            reduce_llm_params={"max_tokens": 3000, "temperature": 0.0},
             context_builder_params={
                 "use_community_summary": False,
                 "shuffle_data": True,
                 "include_community_rank": True,
-                "min_community_rank": 0,
-                "max_tokens": 3000,
+                "min_community_rank": 7,
+                "max_tokens": 80000,
                 "context_name": "Reports",
             },
-            concurrent_coroutines=1
+            concurrent_coroutines=10
         )
         
         start_time = time.time()
