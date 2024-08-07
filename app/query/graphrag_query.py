@@ -75,8 +75,8 @@ class GraphRagQuery:
             context_builder=context_builder,
             token_encoder=token_encoder,
             max_data_tokens=3000,
-            map_llm_params={"max_tokens": 500, "temperature": 0.0},
-            reduce_llm_params={"max_tokens": 500, "temperature": 0.0},
+            map_llm_params={"max_tokens": 1000, "temperature": 0.0},
+            reduce_llm_params={"max_tokens": 2000, "temperature": 0.0},
             context_builder_params={
                 "use_community_summary": False,
                 "shuffle_data": True,
