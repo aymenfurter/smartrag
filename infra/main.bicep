@@ -209,7 +209,7 @@ module app 'core/host/container-app.bicep' = {
     name: '${environmentName}-app'
     location: location
     identityType: 'SystemAssigned'
-    imageName: 'ghcr.io/aymenfurter/smartrag/smartrag:aa7ab61b192a35e944e490e9f0cd2591ee2fcd58'
+    imageName: 'ghcr.io/aymenfurter/smartrag/smartrag:d45943ddec0fcbcd1d24d529349993034e1f9c8e'
     tags: { 'azd-service-name': 'app' }
     containerAppsEnvironmentName: containerApps.outputs.environmentName
     env: [
