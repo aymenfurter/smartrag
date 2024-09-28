@@ -27,4 +27,4 @@ flask[async]
 gevent-websocket
 asgiref
 nest_asyncio
-future
+graspologic==3.4.1
