@@ -33,5 +33,7 @@ COPY --from=frontend-builder /frontend/build /app/static
 
 EXPOSE 5000
 
-# Use Gunicorn with gevent worker
-CMD ["gunicorn", "--worker-class", "geventwebsocket.gunicorn.workers.GeventWebSocketWorker", "--workers", "1", "--bind", "0.0.0.0:5000", "main:app"]
+COPY start.sh .
+RUN chmod +x start.sh
+
+CMD ["./start.sh"]
