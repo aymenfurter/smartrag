@@ -27,3 +27,6 @@ flask[async]==3.0.3
 gevent-websocket==0.10.1
 asgiref==3.8.1
 nest_asyncio==1.6.0
+future==1.0.0
+graspologic==3.4.1
+hyppo==0.4.0

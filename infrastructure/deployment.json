@@ -757,7 +757,7 @@
                         "value": "SystemAssigned"
                     },
                     "imageName": {
-                        "value": "ghcr.io/aymenfurter/smartrag/smartrag:1386e5e55579b237f15886d5b944e2ea3743c2fb"
+                        "value": "ghcr.io/aymenfurter/smartrag/smartrag:46c9b7cf736c984f322fee09d1752372b7bad96b"
                     },
                     "tags": {
                         "value": {
