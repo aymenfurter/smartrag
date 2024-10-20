@@ -431,6 +431,9 @@
                         },
                         "sku": {
                             "type": "object"
+                        },
+                        "queues": {
+                            "type": "array"
                         }
                     },
                     "resources": [
@@ -447,7 +450,29 @@
                                 "supportsHttpsTrafficOnly": true,
                                 "minimumTlsVersion": "TLS1_2"
                             }
+                        },
+                        {
+                            "type": "Microsoft.Storage/storageAccounts/queueServices",
+                            "apiVersion": "2022-05-01",
+                            "name": "[format('{0}/default', parameters('name'))]",
+                            "dependsOn": [
+                                "[resourceId('Microsoft.Storage/storageAccounts', parameters('name'))]"
+                            ],
+                            "properties": {}
+                        },
+                        {
+                            "type": "Microsoft.Storage/storageAccounts/queueServices/queues",
+                            "apiVersion": "2022-05-01",
+                            "name": "[format('{0}/default/{1}', parameters('name'), parameters('queues')[copyIndex()].name)]",
+                            "dependsOn": [
+                                "[resourceId('Microsoft.Storage/storageAccounts/queueServices', parameters('name'), 'default')]"
+                            ],
+                            "copy": {
+                                "name": "queuesCopy",
+                                "count": "[length(parameters('queues'))]"
+                            }
                         }
+
                     ],
                     "outputs": {
                         "id": {
