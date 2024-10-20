@@ -151,7 +151,14 @@ module storage 'core/storage/storage-account.bicep' = {
       name: 'Standard_GRS'
     }
     containers: []
-    queues: []
+    queues: [
+      {
+        name: 'indexing'
+      }
+      {
+        name: 'ingestion'
+      }
+    ]
   }
 }
 

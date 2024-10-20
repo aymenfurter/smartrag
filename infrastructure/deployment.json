@@ -407,6 +407,16 @@
                         "value": {
                             "name": "Standard_GRS"
                         }
+                    },
+                    "queues": {
+                        "value": [
+                            {
+                                "name": "indexing"
+                            },
+                            {
+                                "name": "ingestion"
+                            }
+                        ]
                     }
                 },
                 "template": {
