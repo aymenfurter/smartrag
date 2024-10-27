@@ -62,7 +62,6 @@ const TopDocuments = ({ documents, onDocumentClick }) => {
 
 return (
     <TopDocumentsContainer>
-        <SectionTitle>Top Referenced Documents</SectionTitle>
         <TopDocumentsTable>
             <thead>
                 <tr>

@@ -10,26 +10,17 @@ const ResearchSection = ({
   initialQuestion = '', 
   initialIndex = null 
 }) => {
-  // State management
   const [state, setState] = useState({
     question: initialQuestion,
-    dataSources: [
-      initialIndex
-        ? { 
-            index: initialIndex[0], 
-            name: '', 
-            description: '', 
-            isExpanded: false, 
-            isRestricted: initialIndex[1] 
-          }
-        : { 
-            index: '', 
-            name: '', 
-            description: '', 
-            isExpanded: false, 
-            isRestricted: true 
-          }
-    ],
+    dataSources: initialIndex ? [
+      { 
+        index: initialIndex[0], 
+        name: '', 
+        description: '', 
+        isExpanded: false, 
+        isRestricted: initialIndex[1] 
+      }
+    ] : [],
     isResearching: false,
     results: '',
     maxRounds: 5,
@@ -40,18 +31,16 @@ const ResearchSection = ({
     researchCompleted: false,
     currentPage: 1,
     pdfPreview: null,
-    useGraphrag: false,
+    useGraphrag: true,
     isMounted: true
   });
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       setState(prev => ({ ...prev, isMounted: false }));
     };
   }, []);
 
-  // Initialize with props
   useEffect(() => {
     if (initialQuestion || initialIndex) {
       setState(prev => ({
@@ -63,61 +52,22 @@ const ResearchSection = ({
           description: '',
           isExpanded: false,
           isRestricted: initialIndex[1]
-        }] : prev.dataSources
+        }] : []
       }));
     }
   }, [initialQuestion, initialIndex]);
 
-  // Form handlers
   const handleQuestionChange = useCallback((newQuestion) => {
     setState(prev => ({ ...prev, question: newQuestion }));
   }, []);
 
-  const handleDataSourceChange = useCallback((index, field, value) => {
-    setState(prev => {
-      const newDataSources = [...prev.dataSources];
-      newDataSources[index] = { ...newDataSources[index], [field]: value };
-      
-      if (field === 'index') {
-        const selectedIndex = indexes.find(idx => idx[0] === value);
-        if (selectedIndex) {
-          newDataSources[index].isRestricted = selectedIndex[1];
-        }
-      }
-      
-      return { ...prev, dataSources: newDataSources };
-    });
-  }, [indexes]);
-
-  const handleDataSourceAdd = useCallback(() => {
+  const handleDataSourceChange = useCallback((newSources) => {
     setState(prev => ({
       ...prev,
-      dataSources: [
-        ...prev.dataSources,
-        { index: '', name: '', description: '', isExpanded: false, isRestricted: true }
-      ]
+      dataSources: newSources
     }));
   }, []);
 
-  const handleDataSourceRemove = useCallback((index) => {
-    setState(prev => ({
-      ...prev,
-      dataSources: prev.dataSources.filter((_, i) => i !== index)
-    }));
-  }, []);
-
-  const handleDataSourceExpand = useCallback((index) => {
-    setState(prev => {
-      const newDataSources = [...prev.dataSources];
-      newDataSources[index] = {
-        ...newDataSources[index],
-        isExpanded: !newDataSources[index].isExpanded
-      };
-      return { ...prev, dataSources: newDataSources };
-    });
-  }, []);
-
-  // Research handlers
   const handleUpdate = useCallback((data) => {
     setState(prev => {
       if (!prev.isMounted) return prev;
@@ -229,7 +179,7 @@ const ResearchSection = ({
         body: JSON.stringify({
           question: state.question,
           dataSources: state.dataSources,
-          maxRounds: state.useGraphrag ? state.maxRounds : state.maxRounds,
+          maxRounds: state.maxRounds,
           useGraphrag: state.useGraphrag
         }),
       });
@@ -279,7 +229,6 @@ const ResearchSection = ({
     if (!url) return;
 
     if (url.startsWith('http')) {
-        // Handle regular citations
         let citation = url;
         let parts = citation.split('/');
         let ingestionPart = parts[parts.length - 2];
@@ -287,7 +236,6 @@ const ResearchSection = ({
         let result = baseString.substring(baseString.lastIndexOf('-') + 1);
         const filename = parts.pop().replace('.md', '.pdf');
         handleCitationClick(filename, result);
-
     } else {    
         handleCitationClick(document, url);
     }
@@ -331,9 +279,6 @@ const ResearchSection = ({
           indexes={indexes}
           onQuestionChange={handleQuestionChange}
           onDataSourceChange={handleDataSourceChange}
-          onDataSourceAdd={handleDataSourceAdd}
-          onDataSourceRemove={handleDataSourceRemove}
-          onDataSourceExpand={handleDataSourceExpand}
           onGraphragToggle={(checked) => setState(prev => ({ 
             ...prev, 
             useGraphrag: checked 

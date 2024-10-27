@@ -18,7 +18,6 @@ export const MainContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 50px;
-  padding: 30px;
   background-color: ${props => props.theme.backgroundColor};
 `;
 

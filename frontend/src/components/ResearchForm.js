@@ -1,122 +1,301 @@
-import React from 'react';
-import PropTypes from 'prop-types'; // Add PropTypes import
+import React, { useState } from 'react';
+import PropTypes from 'prop-types';
+import styled, { keyframes } from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
-  faPlus, 
-  faMinus, 
-  faChevronDown, 
-  faChevronUp, 
-  faSpinner, 
-  faPaperPlane 
+  faSearch,
+  faSpinner,
+  faCheck,
+  faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons';
 
-import {
-  ResearchForm as StyledForm,
-  Input,
-  Select,
-  Button,
-  DataSourceContainer,
-  DataSourceHeader,
-  IconButton,
-  SwitchContainer,
-  Checkbox,
-  StyledFontAwesomeIcon
-} from '../styles/StyledComponents';
+// Animations
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
 
-// Add PropTypes for DataSourceField component
-const DataSourceField = ({ 
-  source, 
-  index, 
-  indexes,
-  onDataSourceChange,
-  onDataSourceRemove,
-  onDataSourceExpand 
-}) => (
-  <DataSourceContainer>
-    <DataSourceHeader>
-      <Select
-        value={source.index}
-        onChange={(e) => onDataSourceChange(index, 'index', e.target.value)}
-        required
-      >
-        <option value="">Select a data source</option>
-        {indexes.map((idx) => (
-          <option key={idx[0]} value={idx[0]}>
-            {idx[0]}
-          </option>
-        ))}
-      </Select>
-      <div>
-        <IconButton 
-          onClick={() => onDataSourceExpand(index)}
-          aria-label={source.isExpanded ? "Collapse data source" : "Expand data source"}
-        >
-          <FontAwesomeIcon icon={source.isExpanded ? faChevronUp : faChevronDown} />
-        </IconButton>
-        <IconButton 
-          onClick={() => onDataSourceRemove(index)}
-          aria-label="Remove data source"
-        >
-          <FontAwesomeIcon icon={faMinus} />
-        </IconButton>
-      </div>
-    </DataSourceHeader>
-    {source.isExpanded && (
-      <>
-        <Input
-          type="text"
-          value={source.name}
-          onChange={(e) => onDataSourceChange(index, 'name', e.target.value)}
-          placeholder="Custom name for this data source"
-          aria-label="Data source name"
-        />
-        <Input
-          type="text"
-          value={source.description}
-          onChange={(e) => onDataSourceChange(index, 'description', e.target.value)}
-          placeholder="Brief description of this data source"
-          aria-label="Data source description"
-        />
-      </>
-    )}
-  </DataSourceContainer>
-);
+const slideIn = keyframes`
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+`;
 
-// Add PropTypes for DataSourceField
-DataSourceField.propTypes = {
-  source: PropTypes.shape({
-    index: PropTypes.string.isRequired,
-    name: PropTypes.string.isRequired,
-    description: PropTypes.string.isRequired,
-    isExpanded: PropTypes.bool.isRequired,
-    isRestricted: PropTypes.bool.isRequired
-  }).isRequired,
-  index: PropTypes.number.isRequired,
-  indexes: PropTypes.arrayOf(PropTypes.array).isRequired,
-  onDataSourceChange: PropTypes.func.isRequired,
-  onDataSourceRemove: PropTypes.func.isRequired,
-  onDataSourceExpand: PropTypes.func.isRequired
-};
+// Container Components
+const FormContainer = styled.div`
+  background-color: ${props => props.theme.backgroundColor};
+  border-radius: 15px;
+  margin-bottom: 30px;
+  animation: ${fadeIn} 0.5s ease-out;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+`;
+
+
+const StyledForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background-color: ${props => props.theme.cardBackground};
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+`;
+
+const SearchContainer = styled.div`
+  position: relative;
+  margin-bottom: 20px;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 15px;
+  border: 2px solid ${props => props.theme.inputBorder};
+  border-radius: 12px;
+  font-size: 16px;
+  background-color: ${props => props.theme.inputBackground};
+  color: ${props => props.theme.inputText};
+  transition: all 0.3s ease;
+  padding-right: 50px;
+
+  &:focus {
+    outline: none;
+    border-color: ${props => props.theme.focusBorderColor};
+    box-shadow: 0 0 0 3px ${props => props.theme.focusBoxShadow};
+  }
+
+  &::placeholder {
+    color: #999999;
+  }
+`;
+
+const SearchIcon = styled(FontAwesomeIcon)`
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: ${props => props.theme.searchIconColor};
+  font-size: 20px;
+`;
+
+const DataSourcesGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 25px;
+  margin-bottom: 25px;
+`;
+
+const DataSourceCard = styled.div`
+  background-color: ${props => props.theme.cardBackground};
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+  border: 2px solid ${props => props.selected ? props.theme.primaryButtonColor : props.theme.borderColor};
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  position: relative;
+  box-shadow: ${props => props.selected 
+    ? `0 8px 20px ${props.theme.primaryButtonColor}20`
+    : '0 4px 6px rgba(0, 0, 0, 0.1)'};
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const SelectionIndicator = styled.div`
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: ${props => props.selected ? props.theme.primaryButtonColor : 'transparent'};
+  border: 2px solid ${props => props.selected ? props.theme.primaryButtonColor : props.theme.inputBorder};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  transition: all 0.3s ease;
+`;
+
+const DataSourceTitle = styled.h3`
+  color: ${props => props.theme.titleColor};
+  margin-bottom: 15px;
+  font-size: 20px;
+  font-weight: 600;
+  padding-right: 30px;
+`;
+
+const DataSourceDescription = styled.p`
+  color: ${props => props.theme.messageText};
+  font-size: 16px;
+  line-height: 1.5;
+  flex-grow: 1;
+  opacity: 0.8;
+`;
+
+const SettingsContainer = styled.div`
+  padding-top: 25px;
+  border-top: 1px solid ${props => props.theme.borderColor};
+`;
+
+const CheckboxContainer = styled.label`
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  cursor: pointer;
+  padding: 12px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: ${props => props.theme.inputBackground};
+  }
+`;
+
+const CheckboxInput = styled.input`
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border: 2px solid ${props => props.theme.inputBorder};
+  border-radius: 6px;
+  margin-right: 12px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+
+  &:checked {
+    background-color: ${props => props.theme.primaryButtonColor};
+    border-color: ${props => props.theme.primaryButtonColor};
+  }
+
+  &:checked::after {
+    content: '✔';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 16px;
+  }
+
+  &:hover {
+    border-color: ${props => props.theme.primaryButtonColor};
+  }
+`;
+
+const CheckboxLabel = styled.span`
+  color: ${props => props.theme.inputText};
+  font-size: 18px;
+  font-weight: 500;
+`;
+
+const ResearchDepthContainer = styled.div`
+  margin: 20px 0;
+  padding: 20px;
+  background-color: ${props => props.theme.cardBackground};
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+  label {
+    display: block;
+    margin-bottom: 15px;
+    color: ${props => props.theme.titleColor};
+    font-weight: 600;
+    font-size: 16px;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: ${props => props.theme.inputBorder};
+    margin-bottom: 20px;
+
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: ${props => props.theme.primaryButtonColor};
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+  }
+`;
+
+const ResearchStats = styled.div`
+  margin-top: 15px;
+  padding: 15px;
+  border-radius: 8px;
+  background-color: ${props => `${props.theme.primaryButtonColor}10`};
+  border: 1px solid ${props => `${props.theme.primaryButtonColor}30`};
+  
+  p {
+    margin: 8px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: ${props => props.theme.inputText};
+    font-size: 14px;
+    
+    span:last-child {
+      font-weight: 600;
+      color: ${props => props.theme.primaryButtonColor};
+    }
+  }
+`;
 
 const ResearchForm = ({ 
   question,
   dataSources,
   maxRounds,
-  useGraphrag,
+  useGraphrag = true,
   isResearching,
   indexes,
   onQuestionChange,
   onDataSourceChange,
-  onDataSourceAdd,
-  onDataSourceRemove,
-  onDataSourceExpand,
   onGraphragToggle,
   onMaxRoundsChange,
   onSubmit 
 }) => {
+  // This is now an array of complete data source objects
+  const [selectedSources, setSelectedSources] = useState([]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(e);
+  };
+
+  const toggleDataSource = (indexName, description) => {
+    let newSources = Array.from(selectedSources);
+    const existingIdx = newSources.findIndex(s => s.index === indexName);
+
+    if (existingIdx >= 0) {
+      newSources.splice(existingIdx, 1);
+    } else {
+      newSources.push({
+        index: indexName,
+        name: indexName,
+        description: description,
+        isExpanded: false,
+        isRestricted: false
+      });
+    }
+
+    setSelectedSources(newSources);
+    onDataSourceChange(newSources);
+  };
+
+  const isSourceSelected = (indexName) => {
+    return selectedSources.some(source => source.index === indexName);
   };
 
   const calculateEstimatedTime = () => {
@@ -125,87 +304,80 @@ const ResearchForm = ({
   };
 
   return (
-    <StyledForm onSubmit={handleSubmit}>
-      {/* Research Question Input */}
-      <Input
-        type="text"
-        value={question}
-        onChange={(e) => onQuestionChange(e.target.value)}
-        placeholder="What would you like to research?"
-        required
-        aria-label="Research question"
-      />
+    <FormContainer>
+      <StyledForm onSubmit={handleSubmit}>
+        <SearchContainer>
+          <SearchInput
+            type="text"
+            value={question}
+            onChange={(e) => onQuestionChange(e.target.value)}
+            placeholder="What would you like to research?"
+            required
+          />
+          <SearchIcon 
+            icon={isResearching ? faSpinner : faSearch}
+            spin={isResearching}
+          />
+        </SearchContainer>
 
-      {/* Data Sources */}
-      {dataSources.map((source, index) => (
-        <DataSourceField
-          key={`data-source-${index}`}
-          source={source}
-          index={index}
-          indexes={indexes}
-          onDataSourceChange={onDataSourceChange}
-          onDataSourceRemove={onDataSourceRemove}
-          onDataSourceExpand={onDataSourceExpand}
-        />
-      ))}
+        <DataSourcesGrid>
+          {indexes.map(([name, description]) => (
+            <DataSourceCard
+              key={name}
+              selected={isSourceSelected(name)}
+              onClick={() => toggleDataSource(name, description)}
+              role="button"
+              aria-pressed={isSourceSelected(name)}
+            >
+              <SelectionIndicator selected={isSourceSelected(name)}>
+                {isSourceSelected(name) && <FontAwesomeIcon icon={faCheck} />}
+              </SelectionIndicator>
+              <DataSourceTitle>{name}</DataSourceTitle>
+              <DataSourceDescription>{description}</DataSourceDescription>
+            </DataSourceCard>
+          ))}
+        </DataSourcesGrid>
 
-      {/* Add Data Source Button */}
-      <Button 
-        type="button" 
-        onClick={onDataSourceAdd}
-        aria-label="Add data source"
-      >
-        <StyledFontAwesomeIcon icon={faPlus} /> Add Data Source
-      </Button>
+        <SettingsContainer>
+          <CheckboxContainer>
+            <CheckboxInput
+              type="checkbox"
+              checked={useGraphrag}
+              onChange={(e) => onGraphragToggle(e.target.checked)}
+              id="graphrag-mode"
+            />
+            <CheckboxLabel htmlFor="graphrag-mode">
+              Enable GraphRAG (Enhanced Knowledge Graph Search)
+            </CheckboxLabel>
+          </CheckboxContainer>
 
-      {/* GraphRAG Toggle */}
-      <SwitchContainer>
-        <Checkbox
-          type="checkbox"
-          id="graphrag-mode"
-          checked={useGraphrag}
-          onChange={(e) => onGraphragToggle(e.target.checked)}
-          aria-label="Enable GraphRAG"
-        />
-        <label htmlFor="graphrag-mode">
-          Enable GraphRAG (Enhanced Knowledge Graph Search)
-        </label>
-      </SwitchContainer>
-
-      {/* Research Depth Slider */}
-      <div>
-        <label htmlFor="research-depth">
-          <p>How detailed should the research be?</p>
-        </label>
-        <input
-          id="research-depth"
-          type="range"
-          min="5"
-          max={useGraphrag ? "10" : "30"}
-          value={maxRounds}
-          onChange={(e) => onMaxRoundsChange(parseInt(e.target.value))}
-          aria-label="Research depth"
-        />
-        <span>Estimated time: {calculateEstimatedTime()} seconds</span>
-      </div>
-
-      {/* Submit Button */}
-      <Button 
-        type="submit" 
-        disabled={isResearching}
-        aria-label={isResearching ? "Researching..." : "Start Research"}
-      >
-        <StyledFontAwesomeIcon 
-          icon={isResearching ? faSpinner : faPaperPlane} 
-          spin={isResearching} 
-        />
-        {isResearching ? ' Researching...' : ' Start Research'}
-      </Button>
-    </StyledForm>
+          <ResearchDepthContainer>
+            <label htmlFor="research-depth">Research Depth</label>
+            <input
+              id="research-depth"
+              type="range"
+              min="5"
+              max={useGraphrag ? "10" : "30"}
+              value={maxRounds}
+              onChange={(e) => onMaxRoundsChange(parseInt(e.target.value))}
+            />
+            <ResearchStats>
+              <p>
+                <span>Number of rounds:</span>
+                <span>{maxRounds}</span>
+              </p>
+              <p>
+                <span>Estimated duration:</span>
+                <span>{calculateEstimatedTime()} seconds</span>
+              </p>
+            </ResearchStats>
+          </ResearchDepthContainer>
+        </SettingsContainer>
+      </StyledForm>
+    </FormContainer>
   );
 };
 
-// PropTypes for ResearchForm
 ResearchForm.propTypes = {
   question: PropTypes.string.isRequired,
   dataSources: PropTypes.arrayOf(
@@ -223,9 +395,6 @@ ResearchForm.propTypes = {
   indexes: PropTypes.arrayOf(PropTypes.array).isRequired,
   onQuestionChange: PropTypes.func.isRequired,
   onDataSourceChange: PropTypes.func.isRequired,
-  onDataSourceAdd: PropTypes.func.isRequired,
-  onDataSourceRemove: PropTypes.func.isRequired,
-  onDataSourceExpand: PropTypes.func.isRequired,
   onGraphragToggle: PropTypes.func.isRequired,
   onMaxRoundsChange: PropTypes.func.isRequired,
   onSubmit: PropTypes.func.isRequired
