@@ -266,6 +266,69 @@ const EventItem = styled.div`
   border-left: 4px solid ${props => props.theme.eventItemBorder};
 `;
 
+const SwitchContainer = styled.div`
+  background-color: ${props => props.theme.cardBackground};
+  padding: 20px;
+  border-radius: 10px;
+  border: 1px solid ${props => props.theme.borderColor};
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
+const Checkbox = styled.input`
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+`;
+
+const TreeContainer = styled.div`
+  margin-bottom: 30px;
+  height: 400px;
+  background-color: ${props => props.theme.cardBackground};
+  border-radius: 15px;
+  padding: 20px;
+  border: 1px solid ${props => props.theme.borderColor};
+  .vis-network {
+    height: 100%;
+  }
+`;
+
+const PDFPreviewContainer = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const PDFPreview = styled.div`
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  width: 80%;
+  height: 80%;
+  display: flex;
+  flex-direction: column;
+`;
+
+const PDFEmbed = styled.embed`
+  width: 100%;
+  height: 100%;
+  border: none;
+`;
+
+const CloseButton = styled(Button)`
+  align-self: flex-end;
+  margin-bottom: 10px;
+`;
+
+
 const StyledLink = styled.a`
   color: ${props => props.theme.linkColor};
   text-decoration: none;
@@ -324,52 +387,6 @@ const PaginationLink = styled.a`
   }
 `;
 
-const PDFPreviewContainer = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-`;
-
-const PDFPreview = styled.div`
-  background-color: white;
-  padding: 20px;
-  border-radius: 10px;
-  width: 80%;
-  height: 80%;
-  display: flex;
-  flex-direction: column;
-`;
-
-const PDFEmbed = styled.embed`
-  width: 100%;
-  height: 100%;
-  border: none;
-`;
-
-const CloseButton = styled(Button)`
-  align-self: flex-end;
-  margin-bottom: 10px;
-`;
-
-const TreeContainer = styled.div`
-  margin-bottom: 30px;
-  height: 400px;
-  background-color: ${props => props.theme.cardBackground};
-  border-radius: 15px;
-  padding: 20px;
-  border: 1px solid ${props => props.theme.borderColor};
-  .vis-network {
-    height: 100%;
-  }
-`;
-
 const safeFormatMessage = (message) => {
   if (typeof message === 'string') {
     return formatMessage(message);
@@ -395,6 +412,7 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
   const [researchCompleted, setResearchCompleted] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pdfPreview, setPDFPreview] = useState(null);
+  const [useGraphrag, setUseGraphrag] = useState(false);
   const itemsPerPage = 10;
   const networkRef = useRef(null);
 
@@ -468,7 +486,8 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
         body: JSON.stringify({
           question,
           dataSources,
-          maxRounds,
+          maxRounds: useGraphrag ? maxRounds : maxRounds,
+          useGraphrag
         }),
       });
 
@@ -557,7 +576,15 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
   };
 
   const handleCitation = (document, url) => {
-    let citation = url
+    if (url.startsWith('graphrag://')) {
+      // Handle GraphRAG citations
+      const [, index, id] = url.split('/');
+      setPDFPreview(`/pdf/${index}/${id}?is_restricted=true`);
+      return;
+    }
+
+    // Handle regular citations
+    let citation = url;
     let parts = citation.split('/');
     let ingestionPart = parts[parts.length - 2];
     let baseString = ingestionPart.replace(/-ingestion$/, '');
@@ -565,12 +592,12 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
     const filename = parts.pop().replace('.md', '.pdf');
 
     handleCitationClick(filename, result);
-  }
+  };
 
   const handleCitationClick = useCallback((citation, dataSource) => {
     let prefix = "/";
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      prefix  = "http://localhost:5000/";
+      prefix = "http://localhost:5000/";
     }
 
     const pdfUrl = `${prefix}pdf/${dataSource}/${encodeURIComponent(citation)}?is_restricted=${dataSource.isRestricted}`;
@@ -695,19 +722,33 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
       <Button type="button" onClick={handleAddDataSource}>
         <FontAwesomeIcon icon={faPlus} /> Add Data Source
       </Button>
+
+      <SwitchContainer>
+        <Checkbox
+          type="checkbox"
+          id="graphrag-mode"
+          checked={useGraphrag}
+          onChange={(e) => setUseGraphrag(e.target.checked)}
+        />
+        <label htmlFor="graphrag-mode">
+          Enable GraphRAG (Enhanced Knowledge Graph Search)
+        </label>
+      </SwitchContainer>
+
       <div>
         <label>
-          <p>How fast do you need your results?</p>
+          <p>How detailed should the research be?</p>
           <input
             type="range"
             min="5"
-            max="30"
+            max={useGraphrag ? "10" : "30"}
             value={maxRounds}
             onChange={(e) => setMaxRounds(parseInt(e.target.value))}
           />
         </label>
-        <span>Estimated time: {maxRounds * 20} seconds</span>
+        <span>Estimated time: {maxRounds * (useGraphrag ? 100 : 20)} seconds</span>
       </div>
+
       <Button type="submit" disabled={isResearching}>
         {isResearching ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faPaperPlane} />} 
         {isResearching ? ' Researching...' : ' Start Research'}
@@ -741,13 +782,12 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
               onClick={(e) => {
                 if (e.target.tagName === 'A') {
                   e.preventDefault();
-                  let citation = e.target.getAttribute('href');
+                  let citation = e.target.getAttribute('data-citation');
                   let parts = citation.split('/');
                   let ingestionPart = parts[parts.length - 2];
                   let baseString = ingestionPart.replace(/-ingestion$/, '');
                   let result = baseString.substring(baseString.lastIndexOf('-') + 1);
                   const filename = parts.pop().replace('.md', '.pdf');
-            
                   handleCitationClick(filename, result);
                 }
               }}
@@ -768,47 +808,49 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
         <EventLogContainer>
           <SectionTitle>Event Log</SectionTitle>
           <EventLog>
-          {allEvents.map((event, index) => (
-            <EventItem key={index}>
-              {event.eventType === 'searchEvent' ? (
-                <div>
-                  {event.type === 'search' && event.content.query && (
-                    <>
-                      <StyledFontAwesomeIcon icon={faSearch} /> Searching in {event.content.index}: <SearchHighlight>"{event.content.query}"</SearchHighlight>
-                    </>
-                  )}
-                  {event.type === 'search_complete' && event.content.query && (
-                    <>
-                      <StyledFontAwesomeIcon icon={faFile} /> Search complete in {event.content.index}
-                    </>
-                  )}
-                  {event.type === 'status' && (
-                    <>
-                      <StyledFontAwesomeIcon icon={faSpinner} spin /> {event.content}
-                    </>
-                  )}
-                </div>
-              ) : (
-                <Message isUser={event.role === 'user'}>
-                  {event.content && typeof event.content === 'string' && (
-                    <div dangerouslySetInnerHTML={{ __html: safeFormatMessage(event.content) }} />
-                  )}
-                  {event.content && event.content.tool_calls && (
-                    <div>
-                      <strong>Tool Calls:</strong>
-                      {event.content.tool_calls.map((call, i) => (
-                        <div key={i}>
-                          <em>{call.function.name}</em>: {call.function.arguments}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Message>
-              )}
-              <small>{new Date(event.timestamp).toLocaleString()}</small>
-            </EventItem>
-          ))}
-        </EventLog>
+            {allEvents.map((event, index) => (
+              <EventItem key={index}>
+                {event.eventType === 'searchEvent' ? (
+                  <div>
+                    {event.type === 'search' && event.content.query && (
+                      <>
+                        <StyledFontAwesomeIcon icon={faSearch} /> Searching in {event.content.index}: <SearchHighlight>"{event.content.query}"</SearchHighlight>
+                      </>
+                    )}
+                    {event.type === 'search_complete' && event.content.query && (
+                      <>
+                        <StyledFontAwesomeIcon icon={faSearch} /> Searching in {event.content.index}: <SearchHighlight>"{event.content.query}"</SearchHighlight>
+                        <br/>
+                        <br/><i>{event.content.result}</i>
+                      </>
+                    )}
+                    {event.type === 'status' && (
+                      <>
+                        <StyledFontAwesomeIcon icon={faSpinner} spin /> {event.content}
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <Message isUser={event.role === 'user'}>
+                    {event.content && typeof event.content === 'string' && (
+                      <div dangerouslySetInnerHTML={{ __html: safeFormatMessage(event.content) }} />
+                    )}
+                    {event.content && event.content.tool_calls && (
+                      <div>
+                        <strong>Tool Calls:</strong>
+                        {event.content.tool_calls.map((call, i) => (
+                          <div key={i}>
+                            <em>{call.function.name}</em>: {call.function.arguments}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Message>
+                )}
+                <small>{new Date(event.timestamp).toLocaleString()}</small>
+              </EventItem>
+            ))}
+          </EventLog>
         </EventLogContainer>
         {researchCompleted && (
          <NewResearchButton onClick={() => {
@@ -819,6 +861,7 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
       </ResultsContainer>
     );
   };
+
   const renderNetworkGraph = () => {
     const nodes = [];
     const edges = [];
@@ -905,8 +948,6 @@ function ResearchSection({ indexes, initialQuestion = '', initialIndex = null })
         }
       }
     });
-
-
   };
 
   return (

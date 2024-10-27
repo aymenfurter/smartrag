@@ -2,15 +2,18 @@ import json
 import re
 import threading
 import queue
-from typing import Dict, Any, Callable, Annotated, Generator, Union
+from typing import Dict, Any, Callable, Annotated, Generator, Union, Tuple
 from flask import Response
 from autogen import AssistantAgent, UserProxyAgent, GroupChat, GroupChatManager 
 from app.integration.azure_openai import create_payload, get_openai_config, get_openai_embedding, calculate_cosine_similarity
 from app.integration.index_manager import create_index_manager, ContainerNameTooLongError
 from app.integration.azure_aisearch import create_data_source
+from app.integration.graphrag_config import GraphRagConfig
+from app.query.graphrag_query import GraphRagQuery
 import time
 import requests
 import numpy as np
+import asyncio
 
 class RateLimitException(Exception):
     pass
@@ -53,6 +56,27 @@ def create_user_proxy() -> UserProxyAgent:
         code_execution_config=False,
     )
 
+async def get_graphrag_response(query: str, user_id: str, index_name: str, is_restricted: bool) -> Tuple[str, list]:
+    try:
+        config = GraphRagConfig(index_name, user_id, is_restricted)
+        graph_rag = GraphRagQuery(config)
+        response, context_data = await graph_rag.global_query(query)
+        
+        citations = []
+        if "reports" in context_data:
+            for report in context_data["reports"]:
+                citations.append({
+                    "title": report["title"],
+                    "url": f"graphrag://{report['index_name']}/{report['index_id']}",
+                    "content": report["content"],
+                    "rank": report["rank"]
+                })
+        
+        return response, citations
+    except Exception as e:
+        print(f"GraphRAG query failed: {str(e)}")
+        return "", []
+
 def retry_request(func):
     def wrapper(*args, **kwargs):
         attempts = 0
@@ -67,22 +91,41 @@ def retry_request(func):
     return wrapper
 
 @retry_request
-def search(query: str, index: str) -> str:
+def search(query: str, index: str, use_graphrag: bool, is_restricted: bool, user_id: str, search_index: str) -> str:
     """Perform a search query on the given index."""
     config = get_openai_config()
+    messages = [{"role": "user", "content": query}]
+
+    if use_graphrag:
+        try:
+            graphrag_response, graphrag_citations = asyncio.run(
+                get_graphrag_response(query, user_id, search_index, is_restricted)
+            )
+            if graphrag_response:
+                messages.insert(0, {
+                    "role": "user", 
+                    "content": f"Consider this relevant information from our knowledge graph: {graphrag_response}"
+                })
+        except RuntimeError as e:
+            print(f"Asyncio RuntimeError: {e}")
+
     url = f"{config['OPENAI_ENDPOINT']}/openai/deployments/{config['AZURE_OPENAI_DEPLOYMENT_ID']}/chat/completions?api-version=2024-02-15-preview"
     headers = {
         "Content-Type": "application/json",
         "api-key": config['AOAI_API_KEY']
     }
+    
     payload = create_payload(
-        [{"role": "user", "content": query}],
+        messages,
         {},
         {},
         [create_data_source(config['SEARCH_SERVICE_ENDPOINT'], config['SEARCH_SERVICE_API_KEY'], index)],
         False
     )
+    
+    print (f"Payload: {payload}")
     response = requests.post(url, headers=headers, json=payload)
+
 
     if response.status_code == 429:
         raise RateLimitException("Rate limit reached")
@@ -158,6 +201,7 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Generator[str, Non
     question = data.get("question")
     max_rounds = data.get("maxRounds", 10)
     data_sources = data.get("dataSources", [])
+    use_graphrag = data.get("useGraphrag", False)
 
     config_list = [{
         "model": config['AZURE_OPENAI_DEPLOYMENT_ID'],
@@ -214,7 +258,6 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Generator[str, Non
 
         def create_lookup_function(index: str) -> Callable[[Annotated[str, f"Use this function to search for information on the data source: {index_name}"]], str]:
             def lookup_information(question: Annotated[str, f"Use this function to search for information on the data source: {index_name}"]) -> str:
-                # Calculate similarity with previous queries
                 query_embedding = get_embedding_with_retry(question)
                 previous_embeddings.append(query_embedding)
                 previous_queries.append(question)
@@ -226,10 +269,9 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Generator[str, Non
                     related_query = previous_queries[most_similar_index]
 
                 yield_update('search', {'index': index, 'query': question, 'relatedQuery': related_query})
-                result, full_response = search(question, index)
-                yield_update('search_complete', {'index': index, 'result': result, 'full_response': full_response})
+                result, full_response = search(question, index, use_graphrag, is_restricted, user_id, source['index'])
+                yield_update('search_complete', {'query': question, 'index': index, 'result': result, 'full_response': full_response})
                 
-                # Extract and yield individual citations
                 citations = extract_citations(result)
                 for citation in citations:
                     yield_update('citation', {'query': question, **citation})
@@ -249,7 +291,6 @@ def research_with_data(data: Dict[str, Any], user_id: str) -> Generator[str, Non
         )(lookup_function)
         
     reviewer = create_reviewer_agent(llm_config, single_data_source=(len(data_sources) == 1), list_of_researchers=researcher_agents_list)
-
     def on_message(sender, message, recipient, silent):
         yield_update('message', message)
         return message
