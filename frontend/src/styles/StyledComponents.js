@@ -397,3 +397,112 @@ export const UpdateContainer = styled.div`
 export const CloseButton = styled(Button)`
   align-self: flex-end;
 `;
+
+
+export const ResearchButton = styled.button`
+  width: 100%;
+  padding: 1rem 2rem;
+  background: ${props => props.theme.primaryColor || '#0066cc'};
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 2rem;
+
+  &:hover {
+    background: ${props => props.theme.primaryColorHover || '#0052a3'};
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
+export const TabPanel = styled.div`
+  display: flex;
+  overflow-x: auto;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  margin: 1rem 0;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+  }
+`;
+
+export const TabButton = styled.button`
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  background: ${props => props.active ? props.theme.primaryColor || '#0066cc' : '#f0f0f0'};
+  color: ${props => props.active ? 'white' : '#333'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: ${props => props.active ? '600' : '400'};
+  white-space: nowrap;
+
+  &:hover {
+    background: ${props => props.active ? props.theme.primaryColor || '#0066cc' : '#e0e0e0'};
+  }
+`;
+
+export const MetricBox = styled.div`
+  padding: 1.25rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  .title {
+    font-size: 0.875rem;
+    color: #666;
+  }
+
+  .value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: ${props => props.theme.primaryColor || '#0066cc'};
+  }
+`;
+
+export const ProgressBar = styled.div`
+  width: 100%;
+  height: 4px;
+  background: #eee;
+  border-radius: 2px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+`;
+
+export const ProgressFill = styled.div`
+  width: ${props => props.progress}%;
+  height: 100%;
+  background: ${props => props.theme.primaryColor || '#0066cc'};
+  border-radius: 2px;
+  transition: width 0.3s ease;
+`;
+
+export const ContentGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+`;

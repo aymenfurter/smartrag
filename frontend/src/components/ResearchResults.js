@@ -1,69 +1,25 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import PropTypes from 'prop-types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faSpinner } from '@fortawesome/free-solid-svg-icons';
-
-// Import local components
-import NetworkGraph from './NetworkGraph';
 import TopDocuments from './TopDocuments';
 import EventTimeline from './EventTimeline';
+import NetworkGraph from './NetworkGraph';
 
-// Import styled components
 import {
+  MainContainer,
   ResultsContainer,
   ConclusionContainer,
-  ConclusionContent,
-  ResearchDataSection,
   GraphContainer,
-  TopDocumentsContainer,
+  ConclusionContent,
+  ResearchButton,
+  TabPanel,
+  TabButton,
   SectionTitle,
-  NewResearchButton
+  MetricBox,
+  ProgressBar,
+  ProgressFill,
+  ContentGrid,
 } from '../styles/StyledComponents';
-
-const TimeSeriesGraph = ({ chartData }) => (
-  <GraphContainer>
-    <SectionTitle>Research Progress</SectionTitle>
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={chartData}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis
-          dataKey="time"
-          type="number"
-          domain={['dataMin', 'dataMax']}
-          tickFormatter={(unixTime) => new Date(unixTime).toLocaleTimeString()}
-        />
-        <YAxis />
-        <Tooltip
-          labelFormatter={(unixTime) => new Date(unixTime).toLocaleTimeString()}
-          contentStyle={{ 
-            backgroundColor: '#f8f9fa', 
-            borderRadius: '10px', 
-            border: 'none',
-            padding: '10px'
-          }}
-        />
-        <Legend />
-        <Line 
-          type="monotone" 
-          dataKey="searches" 
-          stroke="#8884d8" 
-          name="Searches"
-          strokeWidth={2}
-          dot={{ strokeWidth: 2 }}
-        />
-        <Line 
-          type="monotone" 
-          dataKey="citations" 
-          stroke="#82ca9d" 
-          name="Citations"
-          strokeWidth={2}
-          dot={{ strokeWidth: 2 }}
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  </GraphContainer>
-);
 
 const ResearchResults = ({
   results,
@@ -77,7 +33,8 @@ const ResearchResults = ({
   onNewResearch,
   question
 }) => {
-  // Handle citation references in the conclusion text
+  const [activeTab, setActiveTab] = useState('overview');
+
   const handleCitationReference = useCallback((e) => {
     if (e.target.tagName === 'A') {
       e.preventDefault();
@@ -92,6 +49,17 @@ const ResearchResults = ({
       }
     }
   }, [onCitationClick]);
+
+  const metrics = React.useMemo(() => ({
+    searches: searchEvents.length,
+    documents: Object.keys(topDocuments).length,
+    progress: Math.min(
+      Math.round((searchEvents.length / Math.max(question?.length || 1, 10)) * 100),
+      100
+    ),
+    combinedEvents: searchEvents.concat(conversation),
+  }), [searchEvents, topDocuments, question]);
+
 
   const formatResultsWithClickableLinks = (text) => {
     if (!text) return '';
@@ -149,75 +117,160 @@ const ResearchResults = ({
   }, [searchEvents, conversation]);
 
   return (
-    <ResultsContainer>
-      {/* Loading State */}
-      {isResearching && (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <FontAwesomeIcon icon={faSpinner} spin size="2x" />
-          <p>Researching...</p>
+    <MainContainer>
+      <ResultsContainer>
+        {/* Progress Bar */}
+        <ProgressBar>
+          { researchCompleted ? <ProgressFill progress={100} /> :
+          <ProgressFill progress={metrics.progress} />
+          }
+        </ProgressBar>
+
+        {/* Research Status */}
+        {isResearching && (
+          <div style={{ 
+            background: '#f0f9ff', 
+            padding: '12px 20px', 
+            borderRadius: '8px',
+            marginBottom: '20px',
+            border: '1px solid #e0f2fe',
+            color: '#0369a1'
+          }}>
+            Analyzing research data... ({metrics.searches} searches completed)
+          </div>
+        )}
+
+        {/* Navigation Tabs */}
+        <TabPanel>
+          <TabButton
+            active={activeTab === 'overview'}
+            onClick={() => setActiveTab('overview')}
+          >
+            Overview
+          </TabButton>
+          <TabButton
+            active={activeTab === 'results'}
+            onClick={() => setActiveTab('results')}
+            disabled={!researchCompleted}
+            style={{ opacity: researchCompleted ? 1 : 0.5 }}
+          >
+            Results
+          </TabButton>
+          <TabButton
+            active={activeTab === 'documents'}
+            onClick={() => setActiveTab('documents')}
+          >
+            Documents ({metrics.documents})
+          </TabButton>
+          <TabButton
+            active={activeTab === 'timeline'}
+            onClick={() => setActiveTab('timeline')}
+          >
+            Timeline
+          </TabButton>
+          <TabButton
+            active={activeTab === 'network'}
+            onClick={() => setActiveTab('network')}
+          >
+            Network
+          </TabButton>
+        </TabPanel>
+
+        {/* Tab Content */}
+        <div>
+          {activeTab === 'network' && (
+            <>
+              <NetworkGraph
+                searchEvents={searchEvents}
+                topDocuments={topDocuments}
+                onNodeClick={onCitationClick}
+                question={question}
+              />
+            </>
+          )}
+          {activeTab === 'overview' && (
+            <>
+              <ContentGrid>
+                <MetricBox>
+                  <div className="title">Total Searches</div>
+                  <div className="value">{metrics.searches}</div>
+                </MetricBox>
+                <MetricBox>
+                  <div className="title">Documents Analyzed</div>
+                  <div className="value">{metrics.documents}</div>
+                </MetricBox>
+              </ContentGrid>
+              <br/> 
+              <GraphContainer>
+                <ResponsiveContainer>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="time"
+                      type="number"
+                      domain={['dataMin', 'dataMax']}
+                      tickFormatter={time => new Date(time).toLocaleTimeString()}
+                    />
+                    <YAxis />
+                    <Tooltip
+                      labelFormatter={time => new Date(time).toLocaleTimeString()}
+                    />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="searches"
+                      stroke="#0066cc"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="citations"
+                      stroke="#00cc88"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </GraphContainer>
+            </>
+          )}
+
+          {activeTab === 'results' && researchCompleted && (
+            <ConclusionContainer>
+            <SectionTitle>Research Findings</SectionTitle>
+            <ConclusionContent
+              dangerouslySetInnerHTML={{ 
+                __html: formatResultsWithClickableLinks(results) 
+              }}
+              onClick={handleCitationReference}
+            />
+          </ConclusionContainer>
+          )}
+
+          {activeTab === 'documents' && (
+            <TopDocuments
+              documents={topDocuments}
+              onDocumentClick={onCitationClick}
+            />
+          )}
+
+          {activeTab === 'timeline' && (
+            <EventTimeline
+            events={combinedEvents}/>
+          )}
         </div>
-      )}
-
-      {/* Research Conclusion */}
-      {results && (
-        <ConclusionContainer>
-          <SectionTitle>Research Findings</SectionTitle>
-          <ConclusionContent
-            dangerouslySetInnerHTML={{ 
-              __html: formatResultsWithClickableLinks(results) 
-            }}
-            onClick={handleCitationReference}
-          />
-        </ConclusionContainer>
-      )}
-
-      {/* Visualizations and Data */}
-      <ResearchDataSection>
-        {/* Network Visualization */}
-        <NetworkGraph
-          searchEvents={searchEvents}
-          topDocuments={topDocuments}
-          onNodeClick={onCitationClick}
-          question={question}
-        />
-
-        {/* Time Series Visualization */}
-        <TimeSeriesGraph chartData={chartData} />
-
-        {/* Document References */}
-        <TopDocuments
-          documents={topDocuments}
-          onDocumentClick={onCitationClick}
-        />
-
-        {/* Research Timeline */}
-        <EventTimeline
-          events={combinedEvents}
-          onCitationClick={onCitationClick}
-        />
-      </ResearchDataSection>
-
-
-      {/* New Research Button */}
-      {researchCompleted && (
-        <NewResearchButton 
-          onClick={onNewResearch}
-          aria-label="Start new research"
-        >
-          Start New Research
-        </NewResearchButton>
-      )}
-    </ResultsContainer>
+        {/* New Research Button */}
+        {researchCompleted && (
+          <ResearchButton onClick={onNewResearch}>
+            Start New Research
+          </ResearchButton>
+        )}
+      </ResultsContainer>
+    </MainContainer>
   );
 };
 
-TimeSeriesGraph.propTypes = {
-  chartData: PropTypes.arrayOf(PropTypes.shape({
-    time: PropTypes.number.isRequired,
-    searches: PropTypes.number.isRequired,
-    citations: PropTypes.number.isRequired
-  })).isRequired
-};
 
 ResearchResults.propTypes = {
   results: PropTypes.string,

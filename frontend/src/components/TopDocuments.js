@@ -16,7 +16,7 @@ import {
 
 const TopDocuments = ({ documents, onDocumentClick }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
 
   // Sort documents by count
   const sortedDocuments = Object.entries(documents)
