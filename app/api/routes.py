@@ -26,6 +26,7 @@ from app.integration.identity import easyauth_enabled
 from app.query.ask import AskService 
 from app.ingestion.pdf_processing import get_pdf_page_count
 from app.query.voice_chat_service import intro_message, voice_chat_with_data
+from app.query.compare import compare_indexes
 
 def are_operations_restricted():
     return os.getenv('RESTRICT_OPERATIONS', 'false').lower() == 'true'
@@ -51,6 +52,7 @@ class RouteConfigurator:
         self._add_ask_route()
         self._add_voice_chat_route()
         self._add_intro_route()
+        self._add_compare_route()
 
         return self.app
 
@@ -76,6 +78,63 @@ class RouteConfigurator:
         self.app.route('/research', methods=['POST'])(self._research)
         self.app.route('/chat', methods=['POST'])(self._chat)
         self.app.route('/refine', methods=['POST'])(self._refine)
+
+    def _add_compare_route(self):
+        """Add the comparison endpoint."""
+        self.app.route('/compare', methods=['POST'])(self._compare)
+
+    def _compare(self):
+        """Handle comparison requests with phased execution."""
+        try:
+            user_id = get_user_id(request)
+            data = request.json
+
+            phase = data.get('phase')
+            if phase not in ['generate', 'refine', 'execute']:
+                return jsonify({"error": "Invalid phase. Must be 'generate', 'refine', or 'execute'"}), 400
+
+            if not isinstance(data.get('indexes', []), list) or len(data.get('indexes', [])) != 2:
+                return jsonify({"error": "Exactly 2 indexes must be provided"}), 400
+
+            is_restricted = data.get('is_restricted', True)
+            for index_name in data['indexes']:
+                index_manager = self._get_index_manager(user_id, index_name, is_restricted)
+                if isinstance(index_manager, tuple):
+                    return index_manager
+
+            if phase == 'refine':
+                if not data.get('requirements') or not data.get('feedback'):
+                    return jsonify({
+                        "error": "Refinement phase requires 'requirements' and 'feedback'"
+                    }), 400
+
+            elif phase == 'execute':
+                if not data.get('requirements'):
+                    return jsonify({
+                        "error": "Execute phase requires 'requirements'"
+                    }), 400
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            try:
+                result = loop.run_until_complete(compare_indexes(data, user_id))
+                
+                if isinstance(result, Response):
+                    return result
+                
+                return jsonify(result)
+
+            except Exception as e:
+                current_app.logger.error(f"Comparison error: {str(e)}")
+                return jsonify({"error": str(e)}), 500
+            finally:
+                loop.close()
+
+        except Exception as e:
+            current_app.logger.error(f"Comparison request error: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+
 
     def _add_voice_chat_route(self):
         @self.app.route('/voice_chat', methods=['POST'])
