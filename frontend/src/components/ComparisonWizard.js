@@ -17,7 +17,6 @@ import RequirementsSetup from './RequirementsSetup';
 import RequirementsReview from './RequirementsReview';
 import ComparisonResults from './ComparisonResults';
 
-// Styled Components
 const WizardContainer = styled.div`
   width: 100%;
   max-width: 1200px;
@@ -151,23 +150,18 @@ function ComparisonWizard({ indexes, onClose }) {
     comparison_target: 'Hospital',
     indexes: [],
     requirements: [],
-    results: null
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  // Ref to track component mount status
+  
   const isMounted = useRef(true);
+  const requirementsCache = useRef(null);
 
   useEffect(() => {
     return () => {
       isMounted.current = false;
     };
   }, []);
-
-  // Cache for requirements and results
-  const requirementsCache = useRef(null);
-  const resultsCache = useRef(null);
 
   const steps = [
     { icon: faListCheck, label: 'Setup', component: RequirementsSetup },
@@ -181,97 +175,13 @@ function ComparisonWizard({ indexes, onClose }) {
   }, []);
 
   const handleRequirementsReview = useCallback(async (requirements) => {
-    // If requirements are cached and not modified, use cache
-    if (requirementsCache.current && JSON.stringify(requirementsCache.current) === JSON.stringify(requirements)) {
-      setWizardData(prev => ({ ...prev, results: resultsCache.current }));
-      setCurrentStep(3);
-      return;
-    }
+    if (!isMounted.current) return;
 
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/compare', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phase: 'execute',
-          ...wizardData,
-          requirements
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server responded with status ${response.status}`);
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let done = false;
-      let accumulatedResults = [];
-
-      while (!done) {
-        const { value, done: doneReading } = await reader.read();
-        done = doneReading;
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split('\n');
-        buffer = lines.pop(); // Save the incomplete line
-
-        for (const line of lines) {
-          if (line.trim()) {
-            try {
-              const data = JSON.parse(line);
-              if (data.type === 'comparison_result' && data.content) {
-                accumulatedResults.push(data.content);
-                // Optionally, you can update the state incrementally here
-              } else if (data.type === 'error') {
-                throw new Error(data.content);
-              }
-            } catch (e) {
-              console.error('Error parsing JSON:', e);
-              throw e;
-            }
-          }
-        }
-      }
-
-      // Handle any remaining buffer
-      if (buffer.trim()) {
-        try {
-          const data = JSON.parse(buffer);
-          if (data.type === 'comparison_result' && data.content) {
-            accumulatedResults.push(data.content);
-          } else if (data.type === 'error') {
-            throw new Error(data.content);
-          }
-        } catch (e) {
-          console.error('Error parsing JSON:', e);
-          throw e;
-        }
-      }
-
-      if (isMounted.current) {
-        setWizardData(prev => ({ ...prev, results: { requirements: accumulatedResults } }));
-        // Cache the results
-        requirementsCache.current = requirements;
-        resultsCache.current = { requirements: accumulatedResults };
-        setCurrentStep(3);
-      }
-    } catch (error) {
-      console.error('Comparison error:', error);
-      if (isMounted.current) {
-        setError('Failed to load comparison results. Please try again.');
-      }
-    } finally {
-      if (isMounted.current) {
-        setIsLoading(false);
-      }
-    }
-  }, [wizardData]);
+    // Cache the requirements for potential reuse
+    requirementsCache.current = requirements;
+    setWizardData(prev => ({ ...prev, requirements }));
+    setCurrentStep(3);
+  }, []);
 
   const handleBack = useCallback(() => {
     setError(null);
@@ -280,52 +190,61 @@ function ComparisonWizard({ indexes, onClose }) {
 
   const renderStepContent = useCallback(() => {
     const StepComponent = steps[currentStep - 1].component;
-    const props = {
-      indexes,
-      wizardData,
-      isLoading,
-      onSubmit: currentStep === 1 ? handleRequirementsSetup : handleRequirementsReview
-    };
-
+    
+    if (currentStep === 1) {
+      return (
+        <StepComponent
+          indexes={indexes}
+          initialData={wizardData}
+          onSubmit={handleRequirementsSetup}
+        />
+      );
+    }
+    
+    if (currentStep === 2) {
+      return (
+        <StepComponent
+          wizardData={wizardData}
+          isLoading={isLoading}
+          onSubmit={handleRequirementsReview}
+        />
+      );
+    }
+    
     if (currentStep === 3) {
       return (
         <StepComponent
-          results={wizardData.results || { requirements: [] }}
           wizardData={wizardData}
         />
       );
     }
-
-    return <StepComponent {...props} />;
   }, [currentStep, indexes, wizardData, isLoading, handleRequirementsSetup, handleRequirementsReview, steps]);
 
-  const renderSteps = useCallback(() => {
-    return (
-      <StepsContainer>
-        {steps.map((step, index) => 
-          <Step key={step.label}>
-            <StepIcon
-              active={currentStep === index + 1}
-              completed={currentStep > index + 1}
-            > 
-              <FontAwesomeIcon 
-                icon={currentStep > index + 1 ? faCheckCircle :
-                      isLoading && currentStep === index + 1 ? faSpinner :
-                      step.icon}
-                spin={isLoading && currentStep === index + 1}
-              />
-            </StepIcon>
-            <StepLabel
-              active={currentStep === index + 1}
-              completed={currentStep > index + 1}
-            >
-              {step.label}
-            </StepLabel>
-          </Step>
-        )}
-      </StepsContainer>
-    );
-  }, [currentStep, isLoading, steps]);
+  const renderSteps = useCallback(() => (
+    <StepsContainer>
+      {steps.map((step, index) => (
+        <Step key={step.label}>
+          <StepIcon
+            active={currentStep === index + 1}
+            completed={currentStep > index + 1}
+          > 
+            <FontAwesomeIcon 
+              icon={currentStep > index + 1 ? faCheckCircle :
+                    isLoading && currentStep === index + 1 ? faSpinner :
+                    step.icon}
+              spin={isLoading && currentStep === index + 1}
+            />
+          </StepIcon>
+          <StepLabel
+            active={currentStep === index + 1}
+            completed={currentStep > index + 1}
+          >
+            {step.label}
+          </StepLabel>
+        </Step>
+      ))}
+    </StepsContainer>
+  ), [currentStep, isLoading, steps]);
 
   return (
     <WizardContainer>

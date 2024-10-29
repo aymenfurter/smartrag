@@ -1,4 +1,3 @@
-# compare.py
 import asyncio
 from typing import Dict, Any, List, Optional, AsyncGenerator
 from functools import lru_cache
@@ -63,7 +62,6 @@ class ComparisonService:
             api_version="2024-02-15-preview",
             azure_endpoint=self.config['OPENAI_ENDPOINT']
         ))
-        # Initialize Instructor client for simplification
         self.simplify_client = instructor.patch(AzureOpenAI(
             api_key=self.config['AOAI_API_KEY'],
             api_version="2024-02-15-preview",
@@ -87,9 +85,13 @@ class ComparisonService:
                         f"I am a {request.role} reviewing the {request.comparison_subject} "
                         f"of the {request.comparison_target}. What are the key requirements we should check? "
                         f"Focus only on requirements that can be answered with yes/no or specific numeric values."
+                        f"The requirement should be in format of a question."
+                        f"The requirement should not be too specific or too general."
+                        f"Do not include the answer in the requirement."
                     )
                     
                     response, context = await graph_rag.global_query(query)
+                    
                     yield json.dumps({
                         "type": "source_data",
                         "content": {
@@ -123,14 +125,17 @@ class ComparisonService:
 
             response = self.client.chat.completions.create(
                 model=self.config['AZURE_OPENAI_DEPLOYMENT_ID'],
+                messages=[{"role": "user", "content": combined_prompt}],
                 response_model=RequirementList,
-                messages=[{"role": "user", "content": combined_prompt}]
+                max_tokens=2000
             )
 
-            yield json.dumps({
-                "type": "requirements",
-                "content": [req.dict() for req in response.requirements]
-            }) + "\n"
+            # Emit each requirement individually
+            for requirement in response.requirements:
+                yield json.dumps({
+                    "type": "requirement",
+                    "content": requirement.dict()
+                }) + "\n"
 
         except Exception as e:
             logger.error(f"Error generating requirements: {str(e)}")
@@ -151,10 +156,10 @@ class ComparisonService:
                 f"Provide updated requirements in the same format."
             )
 
-            response = self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=self.config['AZURE_OPENAI_DEPLOYMENT_ID'],
-                response_model=RequirementList,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
+                response_model=RequirementList
             )
 
             yield json.dumps({
@@ -192,8 +197,6 @@ class ComparisonService:
                         
                         response, context = await graph_rag.global_query(query)
                         citations = await self._get_citations(response, context.get("reports", []))
-
-                        # Simplify the detailed response
                         simplified_value = await self._simplify_response(req_obj.metric_type, response)
 
                         result.sources[index_name] = SourceResult(
@@ -201,6 +204,7 @@ class ComparisonService:
                             simplified_value=simplified_value,
                             citations=citations
                         )
+
                     except Exception as e:
                         logger.error(f"Error querying {index_name} for requirement '{req_obj.description}': {str(e)}")
                         result.sources[index_name] = SourceResult(
@@ -222,7 +226,9 @@ class ComparisonService:
         """Simplify the detailed response into a Yes/No or numeric value."""
         try:
             if metric_type == "yes_no":
-                prompt = f"Extract a single answer (Yes or No) from the following response:\n\n{detailed_response}"
+                if "I am sorry but I am unable to answer" in detailed_response:
+                    return "N/A"
+                prompt = f"Extract a single answer (Yes or No) from the following text:\n\n{detailed_response}"
                 response = self.simplify_client.chat.completions.create(
                     model=self.config['AZURE_OPENAI_DEPLOYMENT_ID'],
                     response_model=SimplifiedResponse,
@@ -232,7 +238,7 @@ class ComparisonService:
                 if simplified.lower() in ["yes", "no"]:
                     return simplified.capitalize()
                 else:
-                    return "No"  # Default to 'No' if unclear
+                    return "N/A"
             elif metric_type == "numeric":
                 prompt = f"Extract a single numeric value and its unit from the following response:\n\n{detailed_response}"
                 response = self.simplify_client.chat.completions.create(
@@ -241,7 +247,6 @@ class ComparisonService:
                     messages=[{"role": "user", "content": prompt}]
                 )
                 simplified = response.value.strip()
-                # Optionally, validate the format here
                 return simplified
             else:
                 return None

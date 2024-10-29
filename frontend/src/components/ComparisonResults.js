@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -7,7 +7,8 @@ import {
   faCheckCircle,
   faTimesCircle,
   faQuestionCircle,
-  faExclamationTriangle
+  faExclamationTriangle,
+  faSpinner
 } from '@fortawesome/free-solid-svg-icons';
 
 const ResultsContainer = styled.div`
@@ -140,8 +141,89 @@ const CloseButton = styled.button`
   cursor: pointer;
 `;
 
-function ComparisonResults({ results, wizardData }) {
+const LoadingRow = styled.tr`
+  td {
+    text-align: center;
+    padding: 1rem;
+    color: ${props => props.theme.primaryButtonColor};
+  }
+`;
+
+function ComparisonResults({ wizardData }) {
+  const [requirements, setRequirements] = useState([]);
   const [selectedDetail, setSelectedDetail] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [streamComplete, setStreamComplete] = useState(false);
+  
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const fetchComparisonResults = async () => {
+      try {
+        const response = await fetch('/compare', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            phase: 'execute',
+            ...wizardData,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+          const { value, done } = await reader.read();
+          
+          if (done) {
+            if (isMounted.current) {
+              setStreamComplete(true);
+              setIsLoading(false);
+            }
+            break;
+          }
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.trim()) {
+              try {
+                const data = JSON.parse(line);
+                if (data.type === 'comparison_result' && isMounted.current) {
+                  setRequirements(prev => [...prev, data.content]);
+                } else if (data.type === 'error' && isMounted.current) {
+                  setError(data.content);
+                }
+              } catch (e) {
+                console.error('Error parsing JSON:', e);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        if (isMounted.current) {
+          setError(error.message);
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchComparisonResults();
+  }, [wizardData]);
 
   const formatResponse = useCallback((response) => {
     if (typeof response === 'boolean') {
@@ -158,13 +240,7 @@ function ComparisonResults({ results, wizardData }) {
           type: lower === 'yes' ? 'yes' : 'no',
           text: lower === 'yes' ? 'Yes' : 'No'
         };
-      } else if (/^\d+(\.\d+)?\s*\w+/.test(response)) { // Regex to match numeric value with unit
-        return {
-          icon: faQuestionCircle,
-          type: 'partial',
-          text: response
-        };
-      } else {
+      } else if (/^\d+(\.\d+)?\s*\w+/.test(response)) {
         return {
           icon: faQuestionCircle,
           type: 'partial',
@@ -175,17 +251,17 @@ function ComparisonResults({ results, wizardData }) {
     return {
       icon: faQuestionCircle,
       type: 'partial',
-      text: response
+      text: response || 'N/A'
     };
   }, []);
 
   const handleExport = useCallback(() => {
     const csvContent = [
       ['Requirement', wizardData.indexes[0], wizardData.indexes[1]],
-      ...results.requirements.map(req => [
+      ...requirements.map(req => [
         `"${req.requirement.description.replace(/"/g, '""')}"`,
-        `"${req.sources[wizardData.indexes[0]].simplified_value || 'N/A'}"`,
-        `"${req.sources[wizardData.indexes[1]].simplified_value || 'N/A'}"`,
+        `"${req.sources[wizardData.indexes[0]]?.simplified_value || 'N/A'}"`,
+        `"${req.sources[wizardData.indexes[1]]?.simplified_value || 'N/A'}"`,
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -198,18 +274,18 @@ function ComparisonResults({ results, wizardData }) {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-  }, [results, wizardData]);
+  }, [requirements, wizardData.indexes]);
 
-  const handleRowClick = (requirement, indexName) => {
+  const handleRowClick = useCallback((requirement, indexName) => {
     setSelectedDetail({ requirement, indexName });
-  };
+  }, []);
 
   const renderTableView = () => {
-    if (!results || !results.requirements || results.requirements.length === 0) {
+    if (error) {
       return (
         <ErrorMessage>
           <FontAwesomeIcon icon={faExclamationTriangle} />
-          <span>No results available to display.</span>
+          <span>{error}</span>
         </ErrorMessage>
       );
     }
@@ -224,12 +300,12 @@ function ComparisonResults({ results, wizardData }) {
           </tr>
         </thead>
         <tbody>
-          {results.requirements.map((requirement, index) => {
+          {requirements.map((requirement, index) => {
             const source1 = requirement.sources[wizardData.indexes[0]];
             const source2 = requirement.sources[wizardData.indexes[1]];
 
-            const source1Response = formatResponse(source1.simplified_value || 'N/A');
-            const source2Response = formatResponse(source2.simplified_value || 'N/A');
+            const source1Response = formatResponse(source1?.simplified_value);
+            const source2Response = formatResponse(source2?.simplified_value);
 
             return (
               <tr key={index}>
@@ -255,6 +331,14 @@ function ComparisonResults({ results, wizardData }) {
               </tr>
             );
           })}
+          {isLoading && !streamComplete && (
+            <LoadingRow>
+              <td colSpan={3}>
+                <FontAwesomeIcon icon={faSpinner} spin />
+                <span className="ml-2">&nbsp;Loading more results...</span>
+              </td>
+            </LoadingRow>
+          )}
         </tbody>
       </ComparisonTable>
     );
@@ -280,7 +364,7 @@ function ComparisonResults({ results, wizardData }) {
               <ul>
                 {source.citations.map((citation, i) => (
                   <li key={i}>
-                    <Citation href={citation.url} target="_blank" rel="noopener noreferrer">
+                    <Citation>
                       [{i + 1}] {citation.text}
                     </Citation>
                   </li>
@@ -296,45 +380,21 @@ function ComparisonResults({ results, wizardData }) {
   return (
     <ResultsContainer>
       {renderTableView()}
-      <ExportButton onClick={handleExport}>
-        <FontAwesomeIcon icon={faFileExport} />
-        Export Results
-      </ExportButton>
+      {!!requirements.length && (
+        <ExportButton onClick={handleExport}>
+          <FontAwesomeIcon icon={faFileExport} />
+          Export Results
+        </ExportButton>
+      )}
       {renderDetailModal()}
     </ResultsContainer>
   );
 }
 
 ComparisonResults.propTypes = {
-  results: PropTypes.shape({
-    requirements: PropTypes.arrayOf(PropTypes.shape({
-      requirement: PropTypes.shape({
-        description: PropTypes.string.isRequired,
-        metric_type: PropTypes.string.isRequired,
-        metric_unit: PropTypes.string
-      }).isRequired,
-      sources: PropTypes.objectOf(PropTypes.shape({
-        response: PropTypes.string.isRequired,
-        simplified_value: PropTypes.string,
-        citations: PropTypes.arrayOf(PropTypes.shape({
-          url: PropTypes.string.isRequired,
-          text: PropTypes.string,
-          document_id: PropTypes.string,
-          content: PropTypes.string,
-          relevance_score: PropTypes.number
-        }))
-      })).isRequired
-    })).isRequired
-  }),
   wizardData: PropTypes.shape({
     indexes: PropTypes.arrayOf(PropTypes.string).isRequired
   }).isRequired
-};
-
-ComparisonResults.defaultProps = {
-  results: {
-    requirements: []
-  }
 };
 
 export default React.memo(ComparisonResults);

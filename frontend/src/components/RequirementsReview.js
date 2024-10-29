@@ -112,11 +112,11 @@ const MetricBadge = styled.span`
 const TextArea = styled.textarea`
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid ${({ theme }) => props => props.theme.inputBorder};
+  border: 1px solid ${props => props.theme.inputBorder};
   border-radius: 8px;
   font-size: 1rem;
-  background: ${({ theme }) => props => props.theme.inputBackground};
-  color: ${({ theme }) => props => props.theme.inputText};
+  background: ${props => props.theme.inputBackground};
+  color: ${props => props.theme.inputText};
   resize: vertical;
   min-height: 100px;
   transition: all 0.2s ease;
@@ -124,17 +124,17 @@ const TextArea = styled.textarea`
 
   &:focus {
     outline: none;
-    border-color: ${({ theme }) => theme.primaryButtonColor};
-    box-shadow: 0 0 0 2px ${({ theme }) => theme.primaryButtonColor}20;
+    border-color: ${props => props.theme.primaryButtonColor};
+    box-shadow: 0 0 0 2px ${props => props.theme.primaryButtonColor}20;
   }
 `;
 
 const MetricSelect = styled.select`
   padding: 0.75rem;
-  border: 1px solid ${({ theme }) => props => props.theme.inputBorder};
+  border: 1px solid ${props => props.theme.inputBorder};
   border-radius: 8px;
-  background: ${({ theme }) => props => props.theme.inputBackground};
-  color: ${({ theme }) => props => props.theme.inputText};
+  background: ${props => props.theme.inputBackground};
+  color: ${props => props.theme.inputText};
   font-size: 1rem;
   margin-top: 0.5rem;
   width: 200px;
@@ -142,27 +142,9 @@ const MetricSelect = styled.select`
 
   &:focus {
     outline: none;
-    border-color: ${({ theme }) => theme.primaryButtonColor};
-    box-shadow: 0 0 0 2px ${({ theme }) => theme.primaryButtonColor}20;
+    border-color: ${props => props.theme.primaryButtonColor};
+    box-shadow: 0 0 0 2px ${props => props.theme.primaryButtonColor}20;
   }
-`;
-
-const LoadingOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const LoadingSpinner = styled.div`
-  color: white;
-  font-size: 2rem;
 `;
 
 const EmptyState = styled.div`
@@ -186,14 +168,25 @@ const ErrorMessage = styled.div`
   gap: 0.5rem;
 `;
 
+const LoadingIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  color: ${props => props.theme.primaryButtonColor};
+  font-size: 1.1rem;
+  gap: 0.5rem;
+`;
+
 function RequirementsReview({ wizardData, onSubmit, isLoading }) {
   const [requirements, setRequirements] = useState([]);
   const [editingIndex, setEditingIndex] = useState(-1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
+  const [streamComplete, setStreamComplete] = useState(false);
 
-  // Ref to track component mount status
   const isMounted = useRef(true);
+  const requirementsCache = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -201,98 +194,94 @@ function RequirementsReview({ wizardData, onSubmit, isLoading }) {
     };
   }, []);
 
-  // Cache for requirements
-  const requirementsCache = useRef(null);
-
   const generateRequirements = useCallback(async () => {
-    // If requirements are cached, use cache
     if (requirementsCache.current) {
-      setRequirements(requirementsCache.current);
-      return;
+        setRequirements(requirementsCache.current);
+        return;
     }
 
     setIsGenerating(true);
     setError(null);
     try {
-      const response = await fetch('/compare', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phase: 'generate',
-          ...wizardData
-        })
-      });
+        const response = await fetch('/compare', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phase: 'generate',
+                ...wizardData
+            })
+        });
 
-      if (!response.ok) {
-        throw new Error(`Server responded with status ${response.status}`);
-      }
+        if (!response.ok) {
+            throw new Error(`Server responded with status ${response.status}`);
+        }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let done = false;
-      let accumulatedRequirements = [];
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
 
-      while (!done) {
-        const { value, done: doneReading } = await reader.read();
-        done = doneReading;
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split('\n');
-        buffer = lines.pop(); // Save the incomplete line
-
-        for (const line of lines) {
-          if (line.trim()) {
-            try {
-              const data = JSON.parse(line);
-              if (data.type === 'requirements' && Array.isArray(data.content)) {
-                accumulatedRequirements.push(...data.content);
-                // Optionally, you can update the state incrementally here
-              } else if (data.type === 'error') {
-                throw new Error(data.content);
-              }
-            } catch (e) {
-              console.error('Error parsing JSON:', e);
-              throw e;
+        while (true) {
+            const { value, done } = await reader.read();
+            
+            if (done) {
+                if (buffer.trim()) {
+                    try {
+                        const data = JSON.parse(buffer);
+                        if (data.type === 'requirement' && isMounted.current) {
+                            setRequirements(prev => {
+                                const updated = [...prev, data.content];
+                                requirementsCache.current = updated;
+                                return updated;
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Error parsing JSON:', e);
+                    }
+                }
+                if (isMounted.current) {
+                    setStreamComplete(true);
+                    setIsGenerating(false);
+                }
+                break;
             }
-          }
-        }
-      }
 
-      // Handle any remaining buffer
-      if (buffer.trim()) {
-        try {
-          const data = JSON.parse(buffer);
-          if (data.type === 'requirements' && Array.isArray(data.content)) {
-            accumulatedRequirements.push(...data.content);
-          } else if (data.type === 'error') {
-            throw new Error(data.content);
-          }
-        } catch (e) {
-          console.error('Error parsing JSON:', e);
-          throw e;
-        }
-      }
+            const chunk = decoder.decode(value, { stream: true });
+            buffer += chunk;
+            
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
 
-      if (isMounted.current) {
-        setRequirements(accumulatedRequirements);
-        // Cache the requirements
-        requirementsCache.current = accumulatedRequirements;
-      }
+            for (const line of lines) {
+                if (line.trim()) {
+                    try {
+                        const data = JSON.parse(line);
+                        if (data.type === 'requirement' && isMounted.current) {
+                            setRequirements(prev => {
+                                const updated = [...prev, data.content];
+                                requirementsCache.current = updated;
+                                return updated;
+                            });
+                        } else if (data.type === 'error' && isMounted.current) {
+                            setError(data.content);
+                            setIsGenerating(false);
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('Error parsing JSON:', e);
+                    }
+                }
+            }
+        }
     } catch (error) {
-      console.error('Error generating requirements:', error);
-      if (isMounted.current) {
-        setError('Failed to generate requirements. Please try again.');
-      }
-    } finally {
-      if (isMounted.current) {
-        setIsGenerating(false);
-      }
+        console.error('Error generating requirements:', error);
+        if (isMounted.current) {
+            setError(error.message);
+            setIsGenerating(false);
+        }
     }
-  }, [wizardData]);
+}, [wizardData]);
 
   useEffect(() => {
-    // Only generate requirements if not already loaded
     if (requirements.length === 0 && !isGenerating && !error) {
       generateRequirements();
     }
@@ -306,7 +295,6 @@ function RequirementsReview({ wizardData, onSubmit, isLoading }) {
     setRequirements(prev => {
       const updated = [...prev];
       updated[index] = updatedRequirement;
-      // Update cache
       requirementsCache.current = updated;
       return updated;
     });
@@ -316,7 +304,6 @@ function RequirementsReview({ wizardData, onSubmit, isLoading }) {
   const handleDelete = useCallback((index) => {
     setRequirements(prev => {
       const updated = prev.filter((_, i) => i !== index);
-      // Update cache
       requirementsCache.current = updated;
       return updated;
     });
@@ -405,22 +392,16 @@ function RequirementsReview({ wizardData, onSubmit, isLoading }) {
           ) : (
             <RequirementsList>
               {requirements.map(renderRequirement)}
-              {isGenerating && (
-                <LoadingSpinner>
+              {isGenerating && !streamComplete && (
+                <LoadingIndicator>
                   <FontAwesomeIcon icon={faSpinner} spin />
-                </LoadingSpinner>
+                  <span>Generating more requirements...</span>
+                </LoadingIndicator>
               )}
             </RequirementsList>
           )}
         </ReviewContainer>
       </form>
-      {isLoading && (
-        <LoadingOverlay>
-          <LoadingSpinner>
-            <FontAwesomeIcon icon={faSpinner} spin />
-          </LoadingSpinner>
-        </LoadingOverlay>
-      )}
     </Container>
   );
 }
