@@ -48,17 +48,6 @@ class ResponseProcessor:
                 }
                 for citation in result["choices"][0]["message"]["context"]["citations"]
             ]
-            #if "context" in result["choices"][0]["message"]:
-            #    context_data = result["choices"][0]["message"]["context"]
-            #    if "citations" in context_data:
-            #        citations = [
-            #            {
-            #                "file": citation["url"].split("/")[-1],
-            #                "content": citation.get("content", ""),
-            #                "text": citation.get("text", "")
-            #            }
-            #            for citation in context_data["citations"]
-            #        ]
 
             return verified_response, citations
 
@@ -66,7 +55,7 @@ class ResponseProcessor:
             logger.error(f"Error processing citations: {str(e)}")
             return response, []
 
-    async def simplify_response(self, metric_type: str, detailed_response: str) -> Optional[str]:
+    async def simplify_response(self, metric_type: str, query: str, detailed_response: str) -> Optional[str]:
         print ("Simplifying answer")
         print (metric_type)
         print (detailed_response)
@@ -75,7 +64,7 @@ class ResponseProcessor:
                 if "I am sorry" in detailed_response or "The requested information is not available" in detailed_response:
                     return "N/A"
                     
-                prompt = f"Extract a single answer (Yes or No) from the following text:\n\n{detailed_response}"
+                prompt = f"Consider the following query and response. Is the response a Yes or No?\n\nQuery: {query}\n\nResponse: {detailed_response}"
                 response = self.client.chat.completions.create(
                     model=self.config['AZURE_OPENAI_DEPLOYMENT_ID'],
                     response_model=SimplifiedResponse,

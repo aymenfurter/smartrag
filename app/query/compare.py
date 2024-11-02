@@ -17,9 +17,6 @@ async def handle_comparison_request(data: Dict[str, Any], user_id: str) -> Async
         if request.phase == "generate":
             async for event in service.generate_requirements(data, user_id):
                 yield event
-        elif request.phase == "refine":
-            async for event in service.refine_requirements(data):
-                yield event
         elif request.phase == "execute":
             async for event in service.execute_comparison(data, user_id):
                 yield event

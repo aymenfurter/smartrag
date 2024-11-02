@@ -77,6 +77,7 @@ class ComparisonExecutor:
 
         simplified_value = await self.response_processor.simplify_response(
             requirement.metric_type, 
+            query,
             response
         )
 
