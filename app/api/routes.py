@@ -26,7 +26,7 @@ from app.integration.identity import easyauth_enabled
 from app.query.ask import AskService 
 from app.ingestion.pdf_processing import get_pdf_page_count
 from app.query.voice_chat_service import intro_message, voice_chat_with_data
-from app.query.compare import compare_indexes
+from app.compare.compare import compare_indexes
 
 def are_operations_restricted():
     return os.getenv('RESTRICT_OPERATIONS', 'false').lower() == 'true'

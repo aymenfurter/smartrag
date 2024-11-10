@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Any, AsyncGenerator
-from app.query.comparison_executor import ComparisonExecutor
-from app.query.comparison_requirement_generator import RequirementGenerator
+from app.compare.comparison_executor import ComparisonExecutor
+from app.compare.comparison_requirement_generator import RequirementGenerator
 import instructor
 from openai import AzureOpenAI
 
