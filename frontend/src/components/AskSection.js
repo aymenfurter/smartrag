@@ -15,41 +15,15 @@ const slideIn = keyframes`
 `;
 
 const AskContainer = styled.div`
-  padding: 30px;
   background-color: ${props => props.theme.backgroundColor};
   border-radius: 15px;
   margin-bottom: 30px;
   animation: ${fadeIn} 0.5s ease-out;
   margin-left: auto;
   margin-right: auto;
+  width: 100%;
 `;
 
-const Title = styled.h2`
-  color: ${props => props.theme.titleColor};
-  font-size: 32px;
-  margin-bottom: 20px;
-  text-align: center;
-  font-weight: 700;
-  letter-spacing: 1px;
-`;
-
-const WarningMessage = styled.div`
-  background-color: ${props => props.theme.warningBackground};
-  color: ${props => props.theme.warningText};
-  padding: 15px;
-  border-radius: 10px;
-  margin-bottom: 25px;
-  display: flex;
-  align-items: center;
-  animation: ${slideIn} 0.3s ease-out;
-  font-size: 16px;
-  line-height: 1.5;
-
-  svg {
-    margin-right: 15px;
-    font-size: 24px;
-  }
-`;
 
 const Form = styled.form`
   display: flex;
@@ -528,11 +502,6 @@ function AskSection({ indexName, isRestricted }) {
 
   return (
     <AskContainer>
-      <Title>Ask Questions</Title>
-      <WarningMessage>
-        <FontAwesomeIcon icon={faExclamationTriangle} />
-        Warning: This feature may lead to increased token usage as the complete document will be processed.
-      </WarningMessage>
       <Form onSubmit={handleSubmit}>
         <CheckboxContainer>
           <CheckboxInput

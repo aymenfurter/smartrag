@@ -5,6 +5,7 @@ import ChatSection from './components/ChatSection';
 import VoiceSection from './components/VoiceSection';
 import UploadSection from './components/UploadSection';
 import ResearchSection from './components/ResearchSection';
+import ComparisonWizard from './components/ComparisonWizard';
 import AskSection from './components/AskSection';
 import IndexRibbon from './components/IndexRibbon';
 import ConfigProvider from './components/ConfigContext';
@@ -163,6 +164,12 @@ function App({ toggleTheme, isDarkMode }) {
                     indexName={selectedIndex[0]} 
                     isRestricted={selectedIndex[1]}
                     onFilesChange={fetchIndexes}
+                  />
+                )}
+                {activeSection === 'compare' && (
+                  <ComparisonWizard 
+                    indexes={indexes} 
+                    onClose={() => setActiveSection('chat')}
                   />
                 )}
                 {activeSection === 'research' && (
