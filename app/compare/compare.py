@@ -44,5 +44,5 @@ async def compare_indexes(data: Dict[str, Any], user_id: str) -> Response:
         logger.error(f"Error in compare_indexes: {str(e)}")
         return jsonify({
             "error": "Comparison failed",
-            "details": str(e)
+            "details": "An internal error has occurred. Please try again later."
         }), 500
