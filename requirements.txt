@@ -9,7 +9,7 @@ Pillow==10.4.0
 uuid==1.30
 azure-ai-documentintelligence==1.0.0b3
 flask-cors==4.0.1
-pyautogen==0.2.33
+ag2==0.2.33
 pytest==8.3.2
 opentelemetry-instrumentation-flask==0.47b0
 langchain==0.2.12
